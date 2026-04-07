@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Exam Results: Molecular Biology Midterm</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary-fixed": "#6284f8",
+              "error-container": "#f97386",
+              "outline-variant": "#adb3b5",
+              "secondary-container": "#dde2f4",
+              "on-tertiary": "#fff6fd",
+              "primary": "#2f56c8",
+              "secondary-fixed": "#dde2f4",
+              "on-error": "#fff7f7",
+              "tertiary": "#6e567e",
+              "on-primary-container": "#000316",
+              "surface-container-highest": "#dee3e6",
+              "inverse-on-surface": "#9b9d9e",
+              "on-secondary-fixed": "#393f4d",
+              "surface-container": "#ebeef0",
+              "on-secondary": "#f9f8ff",
+              "secondary-dim": "#4d5362",
+              "secondary": "#595f6e",
+              "inverse-surface": "#0c0f10",
+              "surface-tint": "#2f56c8",
+              "on-secondary-fixed-variant": "#555b6a",
+              "tertiary-dim": "#614a71",
+              "on-tertiary-container": "#594268",
+              "on-tertiary-fixed": "#452f54",
+              "surface-variant": "#dee3e6",
+              "surface-container-lowest": "#ffffff",
+              "surface": "#f8f9fa",
+              "tertiary-container": "#ebccfc",
+              "on-primary": "#faf8ff",
+              "error-dim": "#6b0221",
+              "on-surface-variant": "#5a6062",
+              "surface-bright": "#f8f9fa",
+              "error": "#a8364b",
+              "on-error-container": "#6e0523",
+              "tertiary-fixed": "#ebccfc",
+              "surface-container-high": "#e5e9eb",
+              "primary-fixed-dim": "#5477ea",
+              "outline": "#767c7e",
+              "on-primary-fixed-variant": "#001040",
+              "on-primary-fixed": "#000000",
+              "on-background": "#2d3335",
+              "inverse-primary": "#678afe",
+              "background": "#f8f9fa",
+              "secondary-fixed-dim": "#cfd4e6",
+              "primary-dim": "#1f49bb",
+              "on-secondary-container": "#4c5260",
+              "on-tertiary-fixed-variant": "#634b72",
+              "surface-dim": "#d5dbdd",
+              "tertiary-fixed-dim": "#dcbfed",
+              "primary-container": "#6284f8",
+              "surface-container-low": "#f1f4f5",
+              "on-surface": "#2d3335"
+            },
+            fontFamily: {
+              "headline": ["Public Sans"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f8f9fa;
+        color: #2d3335;
+      }
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .font-headline { font-family: 'Public Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface">
+<!-- TopNavBar -->
+<header class="flex justify-between items-center w-full px-6 py-3 sticky top-0 z-50 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800/50 shadow-sm dark:shadow-none">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold text-blue-800 dark:text-blue-300 font-headline tracking-tight">AcademiaFocus</span>
+<nav class="hidden md:flex gap-6 items-center">
+<a class="font-public-sans tracking-tight text-sm font-semibold transition-colors duration-200 ease-in-out text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-300" href="#">Dashboard</a>
+<a class="font-public-sans tracking-tight text-sm font-semibold transition-colors duration-200 ease-in-out text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-300" href="#">Exams</a>
+<a class="font-public-sans tracking-tight text-sm font-semibold transition-colors duration-200 ease-in-out text-blue-700 dark:text-blue-400 border-b-2 border-blue-700 dark:border-blue-400 pb-1" href="#">Results</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-on-surface-variant opacity-90 active:scale-95 transition-transform" data-icon="notifications">notifications</button>
+<button class="material-symbols-outlined text-on-surface-variant opacity-90 active:scale-95 transition-transform" data-icon="settings">settings</button>
+<div class="w-8 h-8 rounded-full bg-surface-container-high overflow-hidden border border-outline-variant/20">
+<img alt="Student Profile" data-alt="Student profile avatar placeholder" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFO-iuQrykJfBC-FiBq4mDNxm8OPp27yd93jAFTSC57oAHf5kE9riPLMaarj2tiE0FUUDPF3fSixSkGLNiLqlSuxRt1-gyY1JDm8B_hMh12c2eIyikQll_KOlABAhVAA4VZ7HcUyV-x6dJTygIz3BstPa7cX8lnTJXpZxaIM-sfT2m3YNQ1R0vwnXMoJwjZEf1nivi6EoYO3Xi89BZ9nPKzQJmqLO24GvBMSBxxYzIlpNIboGs_pTcsVDEWQuuGEVtN8TO1skk5bk"/>
+</div>
+</div>
+</header>
+<div class="flex min-h-screen">
+<!-- SideNavBar -->
+<aside class="hidden lg:flex flex-col gap-2 p-4 h-screen w-64 fixed left-0 top-0 pt-16 bg-slate-50 dark:bg-slate-950 border-r border-slate-100 dark:border-slate-800">
+<div class="mb-6 px-4 pt-4">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-primary" data-icon="school">school</span>
+<span class="text-lg font-bold text-slate-900 dark:text-slate-100 font-headline">Final Exam 2024</span>
+</div>
+<p class="text-xs text-on-surface-variant font-medium">Computer Science 101</p>
+</div>
+<nav class="flex flex-col gap-1">
+<a class="font-inter text-sm font-medium flex items-center gap-3 text-slate-600 dark:text-slate-400 px-4 py-2.5 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:translate-x-1 transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+                    Overview
+                </a>
+<a class="font-inter text-sm font-medium flex items-center gap-3 text-slate-600 dark:text-slate-400 px-4 py-2.5 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:translate-x-1 transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="insights">insights</span>
+                    Performance
+                </a>
+<a class="font-inter text-sm font-medium flex items-center gap-3 bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-400 rounded-lg px-4 py-2.5 shadow-sm hover:translate-x-1 transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="grading">grading</span>
+                    Review
+                </a>
+<a class="font-inter text-sm font-medium flex items-center gap-3 text-slate-600 dark:text-slate-400 px-4 py-2.5 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:translate-x-1 transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="query_stats">query_stats</span>
+                    Analytics
+                </a>
+</nav>
+<div class="mt-auto pt-6 border-t border-slate-200/50 flex flex-col gap-1">
+<button class="bg-primary text-on-primary rounded-lg py-2.5 px-4 text-sm font-semibold mb-4 transition-transform active:scale-95">Download PDF</button>
+<a class="font-inter text-sm font-medium flex items-center gap-3 text-slate-600 dark:text-slate-400 px-4 py-2.5 hover:bg-slate-200/50 dark:hover:bg-slate-800/50" href="#">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+                    Support
+                </a>
+<a class="font-inter text-sm font-medium flex items-center gap-3 text-error px-4 py-2.5 hover:bg-error-container/10" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+                    Log Out
+                </a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 lg:ml-64 p-6 md:p-12 max-w-6xl mx-auto w-full">
+<!-- Hero Results Section -->
+<section class="mb-16">
+<div class="bg-gradient-to-br from-primary to-primary-container rounded-xl p-8 md:p-12 text-on-primary shadow-xl relative overflow-hidden">
+<!-- Background Decorative Element -->
+<div class="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
+<div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+<div>
+<h1 class="text-3xl md:text-5xl font-extrabold font-headline mb-4 tracking-tight">Exam Results: Molecular Biology Midterm</h1>
+<p class="text-on-primary/80 text-lg max-w-xl font-medium">Excellent work, Alex! Your deep understanding of cellular processes is evident in this performance. Keep up the momentum for the finals.</p>
+<div class="mt-8 flex gap-4">
+<span class="px-4 py-2 bg-white/20 backdrop-blur-md rounded-full text-sm font-semibold border border-white/20">Winter Semester 2024</span>
+<span class="px-4 py-2 bg-white/20 backdrop-blur-md rounded-full text-sm font-semibold border border-white/20">Attempt #1</span>
+</div>
+</div>
+<div class="bg-white/10 backdrop-blur-xl border border-white/30 p-8 rounded-2xl flex flex-col items-center min-w-[240px]">
+<span class="text-sm font-bold uppercase tracking-widest text-on-primary/70 mb-2">Final Score</span>
+<div class="flex items-baseline gap-1">
+<span class="text-7xl font-extrabold font-headline">92</span>
+<span class="text-2xl font-semibold text-on-primary/60">/100</span>
+</div>
+<div class="mt-6 w-full h-px bg-white/20"></div>
+<div class="mt-6 flex flex-col items-center">
+<span class="text-4xl font-bold font-headline">Grade: A</span>
+<span class="text-xs mt-1 text-on-primary/70 font-semibold tracking-wide">TOP 5% OF CLASS</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Performance by Topic: Bento Grid Style -->
+<section class="mb-20">
+<div class="flex justify-between items-end mb-8">
+<div>
+<h2 class="text-2xl font-bold font-headline mb-1">Performance by Topic</h2>
+<p class="text-on-surface-variant text-sm">Granular breakdown of your knowledge domains</p>
+</div>
+<button class="text-primary text-sm font-bold flex items-center gap-1 hover:underline">
+                        Detailed Stats <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Topic 1 -->
+<div class="bg-surface-container-low p-6 rounded-xl hover:bg-surface-container-high transition-colors">
+<div class="flex justify-between items-start mb-6">
+<div class="p-3 bg-primary/10 rounded-lg">
+<span class="material-symbols-outlined text-primary" data-icon="layers">layers</span>
+</div>
+<span class="text-primary font-bold">100%</span>
+</div>
+<h3 class="font-bold text-lg mb-4">Cell Structure</h3>
+<div class="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[100%] rounded-full"></div>
+</div>
+<p class="mt-4 text-xs text-on-surface-variant leading-relaxed">Mastered all concepts regarding organelles and membrane transport.</p>
+</div>
+<!-- Topic 2 -->
+<div class="bg-surface-container-low p-6 rounded-xl hover:bg-surface-container-high transition-colors">
+<div class="flex justify-between items-start mb-6">
+<div class="p-3 bg-primary/10 rounded-lg">
+<span class="material-symbols-outlined text-primary" data-icon="rebase_edit">rebase_edit</span>
+</div>
+<span class="text-primary font-bold">85%</span>
+</div>
+<h3 class="font-bold text-lg mb-4">DNA Replication</h3>
+<div class="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[85%] rounded-full"></div>
+</div>
+<p class="mt-4 text-xs text-on-surface-variant leading-relaxed">Minor errors in lagging strand synthesis mechanisms.</p>
+</div>
+<!-- Topic 3 -->
+<div class="bg-surface-container-low p-6 rounded-xl hover:bg-surface-container-high transition-colors">
+<div class="flex justify-between items-start mb-6">
+<div class="p-3 bg-primary/10 rounded-lg">
+<span class="material-symbols-outlined text-primary" data-icon="bolt">bolt</span>
+</div>
+<span class="text-primary font-bold">92%</span>
+</div>
+<h3 class="font-bold text-lg mb-4">Metabolism</h3>
+<div class="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[92%] rounded-full"></div>
+</div>
+<p class="mt-4 text-xs text-on-surface-variant leading-relaxed">Strong performance in ATP cycle and enzymatic pathways.</p>
+</div>
+</div>
+</section>
+<!-- Question Review List -->
+<section>
+<div class="mb-8">
+<h2 class="text-2xl font-bold font-headline mb-1">Question Review</h2>
+<p class="text-on-surface-variant text-sm">Analyze your responses and learn from the correct answers</p>
+</div>
+<div class="space-y-6">
+<!-- Correct Question -->
+<div class="bg-surface-container-low rounded-xl overflow-hidden">
+<div class="p-6 flex gap-6">
+<div class="flex flex-col items-center">
+<div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mb-2">
+<span class="material-symbols-outlined text-green-700" data-icon="check">check</span>
+</div>
+<span class="text-[10px] font-bold text-on-surface-variant tracking-widest uppercase">Q1</span>
+</div>
+<div class="flex-1">
+<h4 class="font-bold text-lg mb-4 leading-tight">Which enzyme is responsible for unwinding the DNA double helix during replication?</h4>
+<div class="space-y-3 mb-6">
+<div class="flex items-center gap-3 p-3 rounded-lg bg-green-50 border border-green-200">
+<div class="w-4 h-4 rounded-full bg-green-600 flex items-center justify-center">
+<div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+</div>
+<span class="text-sm font-medium text-green-900">Helicase (Your Choice)</span>
+</div>
+<div class="flex items-center gap-3 p-3 rounded-lg bg-surface-container-lowest">
+<div class="w-4 h-4 rounded-full border-2 border-outline-variant"></div>
+<span class="text-sm text-on-surface-variant">DNA Polymerase</span>
+</div>
+</div>
+<div class="bg-white/50 p-4 rounded-lg">
+<p class="text-xs font-bold text-primary mb-1 uppercase tracking-wider">Explanation</p>
+<p class="text-sm text-on-surface-variant leading-relaxed">Helicases are enzymes that bind and may even remodel nucleic acid or nucleic acid protein complexes. There are RNA and DNA helicases. DNA helicases are essential during DNA replication because they separate double-stranded DNA into single strands allowing each strand to be copied.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Incorrect Question -->
+<div class="bg-surface-container-low rounded-xl overflow-hidden">
+<div class="p-6 flex gap-6">
+<div class="flex flex-col items-center">
+<div class="w-10 h-10 rounded-full bg-error-container/20 flex items-center justify-center mb-2">
+<span class="material-symbols-outlined text-error" data-icon="close">close</span>
+</div>
+<span class="text-[10px] font-bold text-on-surface-variant tracking-widest uppercase">Q2</span>
+</div>
+<div class="flex-1">
+<h4 class="font-bold text-lg mb-4 leading-tight">During which phase of the cell cycle does DNA replication primarily occur?</h4>
+<div class="space-y-3 mb-6">
+<div class="flex items-center gap-3 p-3 rounded-lg bg-error-container/10 border border-error/20">
+<div class="w-4 h-4 rounded-full bg-error flex items-center justify-center">
+<div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+</div>
+<span class="text-sm font-medium text-error-dim">G2 Phase (Your Choice)</span>
+</div>
+<div class="flex items-center gap-3 p-3 rounded-lg bg-green-50 border border-green-200">
+<div class="w-4 h-4 rounded-full bg-green-600 flex items-center justify-center">
+<div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+</div>
+<span class="text-sm font-medium text-green-900">S Phase (Correct Answer)</span>
+</div>
+</div>
+<div class="bg-white/50 p-4 rounded-lg">
+<p class="text-xs font-bold text-primary mb-1 uppercase tracking-wider">Explanation</p>
+<p class="text-sm text-on-surface-variant leading-relaxed">The S phase (Synthesis Phase) is the phase of the cell cycle in which DNA is replicated, occurring between G1 phase and G2 phase. Since accurate duplication of the genome is critical to successful cell division, the processes that occur during S-phase are tightly regulated.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Correct Question 3 -->
+<div class="bg-surface-container-low rounded-xl overflow-hidden">
+<div class="p-6 flex gap-6">
+<div class="flex flex-col items-center">
+<div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mb-2">
+<span class="material-symbols-outlined text-green-700" data-icon="check">check</span>
+</div>
+<span class="text-[10px] font-bold text-on-surface-variant tracking-widest uppercase">Q3</span>
+</div>
+<div class="flex-1">
+<h4 class="font-bold text-lg mb-4 leading-tight">What is the main byproduct of anaerobic respiration in muscle cells?</h4>
+<div class="space-y-3 mb-6">
+<div class="flex items-center gap-3 p-3 rounded-lg bg-green-50 border border-green-200">
+<div class="w-4 h-4 rounded-full bg-green-600 flex items-center justify-center">
+<div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+</div>
+<span class="text-sm font-medium text-green-900">Lactic Acid (Your Choice)</span>
+</div>
+<div class="flex items-center gap-3 p-3 rounded-lg bg-surface-container-lowest">
+<div class="w-4 h-4 rounded-full border-2 border-outline-variant"></div>
+<span class="text-sm text-on-surface-variant">Ethanol</span>
+</div>
+</div>
+<div class="bg-white/50 p-4 rounded-lg">
+<p class="text-xs font-bold text-primary mb-1 uppercase tracking-wider">Explanation</p>
+<p class="text-sm text-on-surface-variant leading-relaxed">In mammals, anaerobic respiration in muscles produces lactic acid as a byproduct when oxygen levels are insufficient to sustain aerobic respiration. This process allows for continued ATP production under stress.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Footer Stats / CTA -->
+<footer class="mt-20 py-12 border-t border-surface-container-highest flex flex-col md:flex-row items-center justify-between gap-8">
+<div class="flex items-center gap-8">
+<div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1">Total Time</p>
+<p class="text-lg font-bold">42m 15s</p>
+</div>
+<div class="w-px h-8 bg-surface-container-highest"></div>
+<div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1">Average / Question</p>
+<p class="text-lg font-bold">50.7s</p>
+</div>
+<div class="w-px h-8 bg-surface-container-highest"></div>
+<div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1">Class Rank</p>
+<p class="text-lg font-bold">#14 / 280</p>
+</div>
+</div>
+<div class="flex gap-4">
+<button class="px-6 py-3 border border-outline-variant text-on-surface font-bold text-sm rounded-lg hover:bg-surface-container transition-colors">Retake Practice</button>
+<button class="px-6 py-3 bg-primary text-on-primary font-bold text-sm rounded-lg shadow-lg shadow-primary/20 hover:bg-primary-dim transition-all active:scale-95">Proceed to Next Unit</button>
+</div>
+</footer>
+</main>
+</div>
+</body></html>

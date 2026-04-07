@@ -1,0 +1,397 @@
+﻿.UserInfoLabel
+ {
+    font-size:10px;
+    color:#000000;
+    font-family:Verdana;
+    background-color:#FF9C00
+  }
+.Label
+ {
+    font-size:10px;
+    color:#000000;
+    font-family:Verdana;
+    background-color:#ffffff    
+  }
+  .redLabel
+ {
+    font-size:10px;
+    color:red;
+    font-family:Verdana;
+    background-color:#ffffff    
+  }
+  .MenuBar
+{
+	BORDER-TOP: #6D6D49 1px inset;
+	border-left: #6D6D49 1px outset;
+	BORDER-BOTTOM: #6D6D49 1px inset;
+	border-right: #6D6D49 1px outset;
+    FONT-WEIGHT: bold;
+    FONT-SIZE: 10px;
+    FILTER: progid:DXImageTransform.Microsoft.Gradient(GradientType=0,StartColorStr='#6D6D49', EndColorStr='#6D6D49') ;
+    COLOR:black;    
+    FONT-FAMILY: verdana;    
+}
+  .LegendLabel
+ {
+    font-size:11px;
+    color:#009CC4;
+    font-family:Verdana;
+    /*background-color:#f2f1e7;*/
+    font-weight:bold     
+  }
+  .LegendLabel1
+ {
+    font-size:11px;
+    color:#ffffff;
+    font-family:Verdana;
+    font-weight:bold     
+  }
+  
+  .AdminLabel
+  {
+	font-size:7pt;
+    color:#000000;
+    font-family:Verdana;
+    background-color:#ffffff;
+    font-weight:bold     
+  }
+  
+.LoginLabel
+ {
+    font-size:10px;
+    color:#000000;
+    font-family:Verdana;
+    background-color:#f2f1e7
+  }
+.SearchTextBox
+{
+   font-size:10px;
+   color:#000000;
+   font-family:Verdana;
+   background-color:#D2D3D5 
+}
+  
+.Text
+{
+   border: 1px solid Tan;
+	font-size:10px;
+   	color:#000000;
+   	font-family:Verdana;
+   	height: 16px;
+} 
+.GridAlternateRowStyle
+{
+	font-size:10px;
+	color: #000000;
+	font-family:Verdana;
+}
+.GridRowStyle
+{
+	font-size:10px;
+	color: #000000;
+	font-family:Verdana;
+}
+.GridHeader
+{
+	font-size:10px; 
+	color:#FFFFFF;
+	font-weight:bold;
+	font-family:Verdana;
+	background-color:#A2A2A2;	
+}
+.TableOddRow
+{
+	font-size:10px;
+	color: #000000;
+	font-family:Verdana;
+	/*background-color:#f2f1e7*/
+ }
+.TableEvenRow
+{
+	font-size:10px;
+	color: #000000;
+	font-family:Verdana;
+	/*background-color:#f2f1e7;  */
+}
+.TrResultHeader
+{
+	font-size:10px;
+	color: #000000;
+	font-family:Verdana;
+    background-color :Blue;
+}
+.TableBorderColor
+{
+	border-color:#000000; 
+}
+.TableHeading
+{
+	font-size:12px; 
+	color:#FFFFFF;
+	font-weight:bold;
+	font-family:Verdana;
+	background-color:#FE7600 	
+}
+.LabelHeading
+{
+	font-size:12px; 
+	color:#000000;
+	font-weight:bold;
+	font-family:Verdana;
+	background-color:#f2f1e7 	
+}
+.LinkButton
+{
+    FONT-WEIGHT: bold;
+    FONT-SIZE: 7.8pt;
+    COLOR:#f47920;
+    FONT-FAMILY: verdana
+}
+.BrowseButon
+ {
+
+	border-top:1px solid #AEAEAE;
+	border-bottom:2px solid #B9B9B9;
+	color:#000000;
+	font-weight:bold;
+	font-family:verdana;    
+    FONT-SIZE: 6.8pt;    
+    WIDTH: 60pt;    
+    BORDER-LEFT-COLOR: #AEAEAE;
+    BORDER-BOTTOM-COLOR: #B9B9B9;
+    BORDER-TOP-COLOR: #AEAEAE;    
+    BACKGROUND-COLOR: #f2f1e7;
+    BORDER-RIGHT-COLOR: #AEAEAE;
+ }
+ .ButtonRow
+{
+	font-size:10px;
+	color: #000000;
+	font-family:Verdana;
+	background-color:#C0C0C0
+ }
+ 
+  .Button
+{
+	border-top:1px solid #AEAEAE;
+	border-bottom:1px solid #B9B9B9;
+	color:Black;
+	font-weight:bold;
+	font-family:verdana;   
+	FONT-SIZE: 7.8pt;    
+    WIDTH: 50pt;    
+    BORDER-LEFT-COLOR: #AEAEAE;
+    BORDER-BOTTOM-COLOR: #B9B9B9;
+    BORDER-TOP-COLOR: #AEAEAE;    
+   BACKGROUND-COLOR: #E0E0E0;
+    BORDER-RIGHT-COLOR: #AEAEAE;
+ }
+ 
+ .ButtonOld
+{
+
+	border-top:1px solid #AEAEAE;
+	border-bottom:1px solid #B9B9B9;
+	color:#FFFFFF;
+	font-weight:bold;
+	font-family:verdana;   
+	FONT-SIZE: 7.8pt;    
+    WIDTH: 60pt;    
+    BORDER-LEFT-COLOR: #AEAEAE;
+    BORDER-BOTTOM-COLOR: #B9B9B9;
+    BORDER-TOP-COLOR: #AEAEAE;    
+    BACKGROUND-COLOR: #FE7F0D;
+    BORDER-RIGHT-COLOR: #AEAEAE;
+}
+.TableBorderLine
+{
+	border-style:solid;
+	border-color:Tan;
+	border-width:1px;	
+}
+.tabViewMenuoff
+{
+	color:#FFFFFF;
+	text-decoration: none;
+	background: white;
+	BACKGROUND-COLOR: #FE7F0D;
+	font-size:10px;
+	font-weight:bold;
+    font-family: Verdana;
+    height:15px;
+}
+
+.tabviewMenuon
+{
+	color: #FE7F0D;
+	text-decoration: none;
+	background: white;
+	BACKGROUND-COLOR: #ffebcd;
+	font-size:10px;
+	font-weight:bold;
+    font-family: Verdana;
+    height:15px;
+}
+.HrLine
+{
+	color:#FD8002;
+	height:1px;
+}
+
+.Footercolor
+{
+	background-color:#A2A2A2;
+	color:#ffffff;
+}
+.tblbackground
+{
+	BACKGROUND-COLOR: #cb5e02;
+	font-family: Verdana;
+	font-size:12px;
+	color:#FFFFFF;
+}
+
+.scrollbars
+{
+	SCROLLBAR-FACE-COLOR: #ffffff;
+    SCROLLBAR-HIGHLIGHT-COLOR: #000000;
+    SCROLLBAR-SHADOW-COLOR:#ececec;
+    SCROLLBAR-3DLIGHT-COLOR: #D4E1D5;
+    SCROLLBAR-ARROW-COLOR: #a4a4d2;
+    SCROLLBAR-TRACK-COLOR: lightgrey;
+    SCROLLBAR-DARKSHADOW-COLOR: lightgrey;
+	width: 857px;
+	height: 485px;
+}
+.ButtonNew
+{
+	border-top:1px solid #AEAEAE;
+	border-bottom:1px solid #B9B9B9;
+	/*color:#FF9900;*/
+	font-weight:bold;
+	font-family:verdana;   
+	FONT-SIZE: 7.8pt;    
+    WIDTH: 50pt;    
+    BORDER-LEFT-COLOR: #AEAEAE;
+    BACKGROUND-COLOR: #E0E0E0;
+    BORDER-RIGHT-COLOR: #AEAEAE;
+	height: 19px;
+}
+body,html
+{
+    /*background-color:#f2f1e7;*/
+    SCROLLBAR-FACE-COLOR: #ffffff;
+    SCROLLBAR-HIGHLIGHT-COLOR: #A2A2A2;
+    SCROLLBAR-SHADOW-COLOR:#ececec;
+    SCROLLBAR-3DLIGHT-COLOR: #D4E1D5;
+    SCROLLBAR-ARROW-COLOR: #F78825;
+    SCROLLBAR-TRACK-COLOR: #A2A2A2;
+    SCROLLBAR-DARKSHADOW-COLOR: #F78825;
+	}
+.MainLabel
+{
+	color:White; 
+	font-size:11px;
+	font-family:Verdana; 
+	font-weight:bold
+}
+
+.IndexLinkButton
+{
+    FONT-SIZE: 7.8pt;
+    COLOR:#000000;
+    text-decoration: none;
+    FONT-FAMILY: verdana
+}
+.HrLineIndex
+{
+	color:#000000;
+	height:1px;
+}
+.FixedGridHeader
+{
+	font-size:10px; 
+	color:#FFFFFF;
+	font-weight:bold;
+	font-family:Verdana;
+	background-color:#A2A2A2;	
+	
+	overflow: auto;
+	position: relative;
+	top: expression(this.parentNode.parentNode.parentNode.scrollTop-1);
+}
+.MainFrmStyle
+{
+	BORDER-TOP: #F29200 1px solid;
+	border-left: #F29200 1px solid;
+	BORDER-BOTTOM: #F29200 1px solid;
+	border-right: #F29200 1px solid;
+}
+.TdMainFrmStyle
+{
+	border-top: #F29200 1px solid;
+	border-left: #F29200 1px solid;
+	border-bottom: #F29200 1px solid;
+	border-right: #F29200 1px solid;
+	font-size:10px;
+	color: #000000;
+	font-family:Verdana;
+}
+.dGridHeader
+{
+    FONT-WEIGHT: bold;
+    FONT-SIZE:  xx-small;
+    COLOR: maroon;
+    FONT-FAMILY: Verdana;
+    height:25px;
+    BACKGROUND-COLOR:#988663   	                 
+}
+.TrHeaderResult
+{
+	font-size:10px; 
+	color:black;
+	font-weight:bold;
+	font-family:Verdana;
+	background-color:Gray;
+}
+.TrBodyResult
+{
+	font-size:10px; 
+	color:black;
+	font-family:Verdana;
+	background-color:lightgrey;
+}
+.TrFooterResult
+{
+	font-size:10px; 
+	color:black;
+	font-weight:bold;
+	font-family:Verdana;
+	background-color:Tan;
+}
+.MainMenuStatic
+{
+	FONT-WEIGHT: bold;
+    FONT-SIZE: 10px;
+    /*FILTER: progid:DXImageTransform.Microsoft.Gradient(GradientType=0,StartColorStr='#999999', EndColorStr='#0d0d0d');*/
+    FILTER: progid:DXImageTransform.Microsoft.Gradient(GradientType=0,StartColorStr='#6D6D49', EndColorStr='#6D6D49');
+    COLOR:white;    
+    FONT-FAMILY: verdana;   
+    text-align:left;
+    width:80px;
+}
+.MainMenuStaticHover
+{
+	/*BORDER-TOP: #6D6D49 1.5px inset;
+	border-left: #6D6D49 1.5px inset;
+	BORDER-BOTTOM: #6D6D49 1.5px inset;
+	border-right: #6D6D49 1.5px inset;*/
+    FONT-WEIGHT: bold;
+    FONT-SIZE: 10px;
+    FILTER: progid:DXImageTransform.Microsoft.Gradient(GradientType=0,StartColorStr='#6D6D49', EndColorStr='#6D6D49');
+    COLOR:DarkOrange;    
+    FONT-FAMILY: verdana;   
+    text-align:left;
+    height:18px;
+    width:80px;
+}

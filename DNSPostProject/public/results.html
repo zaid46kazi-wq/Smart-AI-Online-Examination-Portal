@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Exam Results - Online Examination System | AGMR College</title>
+<meta name="description" content="View all student exam results and performance data."/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  theme: { extend: {
+    colors: {
+      "primary-fixed":"#6284f8","error-container":"#f97386","outline-variant":"#adb3b5",
+      "secondary-container":"#dde2f4","primary":"#2f56c8","error":"#a8364b",
+      "surface-container-highest":"#dee3e6","surface-container":"#ebeef0",
+      "surface-container-lowest":"#ffffff","surface-container-low":"#f1f4f5",
+      "surface-container-high":"#e5e9eb","on-surface":"#2d3335","on-surface-variant":"#5a6062",
+      "on-primary":"#faf8ff","surface":"#f8f9fa","primary-dim":"#1f49bb",
+      "primary-container":"#6284f8","on-error-container":"#6e0523","outline":"#767c7e",
+    },
+    fontFamily: { "headline":["Public Sans"], "body":["Inter"], "label":["Inter"] },
+    borderRadius: {"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},
+  }},
+}
+</script>
+<style>
+body { font-family: 'Inter', sans-serif; background-color: #f8f9fa; color: #2d3335; }
+.material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+.font-headline { font-family: 'Public Sans', sans-serif; }
+</style>
+</head>
+<body class="bg-surface text-on-surface">
+
+<!-- College Header -->
+<div class="w-full bg-primary text-on-primary py-2 px-6 text-center">
+  <h1 class="text-sm font-bold font-headline tracking-tight">AGMR College of Engineering</h1>
+</div>
+
+<!-- TopNavBar -->
+<header class="flex justify-between items-center w-full px-6 py-3 sticky top-0 z-50 bg-white border-b border-slate-100 shadow-sm">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold text-blue-800 font-headline tracking-tight">Exam Results</span>
+<nav class="hidden md:flex gap-6 items-center">
+<a class="text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors" href="/admin">Dashboard</a>
+<a class="text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors" href="/create-exam">Create Exam</a>
+<a class="text-sm font-semibold text-blue-700 border-b-2 border-blue-700 pb-1" href="/results">Results</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<a href="/admin" class="px-4 py-2 bg-surface-container-low text-on-surface-variant font-semibold rounded-xl hover:bg-surface-container transition-colors text-sm">← Dashboard</a>
+<button onclick="doLogout()" class="bg-error/10 text-error px-4 py-2 rounded-xl font-semibold text-sm hover:bg-error hover:text-white transition-all">Logout</button>
+</div>
+</header>
+
+<div class="flex min-h-screen">
+<!-- SideNavBar -->
+<aside class="hidden lg:flex flex-col gap-2 p-4 h-screen w-64 fixed left-0 top-0 pt-24 bg-slate-50 border-r border-slate-100">
+<div class="mb-6 px-4 pt-4">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-primary">school</span>
+<span class="text-lg font-bold text-slate-900 font-headline">Results</span>
+</div>
+<p class="text-xs text-on-surface-variant font-medium">AGMR College</p>
+</div>
+<nav class="flex flex-col gap-1">
+<a class="text-sm font-medium flex items-center gap-3 text-slate-600 px-4 py-2.5 hover:bg-slate-200/50 rounded-lg" href="/admin">
+<span class="material-symbols-outlined">dashboard</span> Dashboard
+</a>
+<a class="text-sm font-medium flex items-center gap-3 bg-white text-blue-700 rounded-lg px-4 py-2.5 shadow-sm" href="/results">
+<span class="material-symbols-outlined">grading</span> All Results
+</a>
+</nav>
+<div class="mt-auto pt-6 border-t border-slate-200/50 flex flex-col gap-1">
+<a onclick="doLogout()" class="text-sm font-medium flex items-center gap-3 text-error px-4 py-2.5 hover:bg-error-container/10 cursor-pointer">
+<span class="material-symbols-outlined">logout</span> Log Out
+</a>
+</div>
+</aside>
+
+<!-- Main Content -->
+<main class="flex-1 lg:ml-64 p-6 md:p-12 max-w-7xl mx-auto w-full">
+
+<!-- Hero Section -->
+<section class="mb-12">
+<div class="bg-gradient-to-br from-primary to-primary-container rounded-xl p-8 md:p-12 text-on-primary shadow-xl relative overflow-hidden">
+<div class="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
+<div class="relative z-10">
+<h1 class="text-3xl md:text-4xl font-extrabold font-headline mb-4 tracking-tight">All Exam Results</h1>
+<p class="text-on-primary/80 text-lg max-w-xl font-medium">Comprehensive view of all student exam submissions and scores.</p>
+</div>
+</div>
+</section>
+
+<!-- Results Table -->
+<section>
+<div class="bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm border border-outline-variant/10">
+<div class="px-6 py-4 bg-surface-container-low flex justify-between items-center">
+<h3 class="text-sm font-bold text-on-surface uppercase tracking-widest">Student Results</h3>
+<span class="text-xs text-on-surface-variant" id="resultCount">Loading...</span>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low">
+<th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Student</th>
+<th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Name</th>
+<th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest">USN</th>
+<th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Exam</th>
+<th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Score</th>
+<th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Total</th>
+<th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest">%</th>
+<th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Status</th>
+<th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Date</th>
+<th class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest text-right">PDF</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container" id="resultBody">
+<tr><td colspan="10" class="px-6 py-12 text-center text-on-surface-variant">
+<div class="inline-block w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin mb-2"></div>
+<p>Loading results...</p>
+</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+
+</main>
+</div>
+
+<!-- Footer -->
+<footer class="bg-on-surface text-on-surface-variant/60 py-4 px-6 text-center lg:ml-64">
+  <p class="text-xs font-medium">Online Examination System</p>
+  <p class="text-[10px] mt-0.5">Developer: Sayed Zaid Kazi</p>
+</footer>
+
+<script>
+async function doLogout() {
+  await fetch('/api/logout', { method: 'POST' });
+  window.location.href = '/login';
+}
+
+async function loadResults() {
+  try {
+    const res = await fetch('/api/results');
+    if (!res.ok) { document.getElementById('resultBody').innerHTML = '<tr><td colspan="10" class="px-6 py-8 text-center text-error">Failed to load</td></tr>'; return; }
+    const results = await res.json();
+    const tbody = document.getElementById('resultBody');
+    document.getElementById('resultCount').textContent = results.length + ' submissions';
+    if (!results.length) { tbody.innerHTML = '<tr><td colspan="10" class="px-6 py-8 text-center text-on-surface-variant">No results yet</td></tr>'; return; }
+    tbody.innerHTML = results.map(r => {
+      const pct = r.TotalMarks > 0 ? Math.round((r.Score / r.TotalMarks) * 100) : 0;
+      const passed = pct >= 40;
+      return `<tr class="hover:bg-slate-50/50 transition-colors">
+        <td class="px-6 py-5">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-secondary-container flex items-center justify-center text-primary text-xs font-bold">${(r.Username||'?')[0].toUpperCase()}</div>
+            <div class="text-sm font-bold">${r.Username || ''}</div>
+          </div>
+        </td>
+        <td class="px-6 py-5 text-sm">${r.Name || ''}</td>
+        <td class="px-6 py-5 text-sm">${r.USN || ''}</td>
+        <td class="px-6 py-5 text-sm font-medium">${r.ExamName || ''}</td>
+        <td class="px-6 py-5 text-sm font-bold">${r.Score || 0}</td>
+        <td class="px-6 py-5 text-sm">${r.TotalMarks || 0}</td>
+        <td class="px-6 py-5 text-sm font-bold">${pct}%</td>
+        <td class="px-6 py-5"><span class="px-3 py-1 rounded-full text-xs font-bold ${passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${passed ? 'PASS' : 'FAIL'}</span></td>
+        <td class="px-6 py-5 text-sm text-on-surface-variant">${r.ExamDate ? new Date(r.ExamDate).toLocaleDateString('en-IN') : ''}</td>
+        <td class="px-6 py-5 text-right"><a href="/api/result-pdf/${r.id}" class="bg-secondary-container text-primary font-bold text-xs px-4 py-2 rounded-lg hover:bg-primary hover:text-on-primary transition-all">PDF</a></td>
+      </tr>`;
+    }).join('');
+  } catch (err) {
+    document.getElementById('resultBody').innerHTML = '<tr><td colspan="10" class="px-6 py-8 text-center text-error">Error: ' + err.message + '</td></tr>';
+  }
+}
+
+loadResults();
+</script>
+
+<!-- Footer -->
+<footer class="bg-surface-container-highest text-on-surface-variant text-center py-6 mt-12 border-t border-outline-variant/20">
+  <p class="text-sm font-medium">Online Examination System</p>
+  <p class="text-xs opacity-70">Developer: Sayed Zaid Kazi | AGMR College of Engineering</p>
+</footer>
+</body></html>

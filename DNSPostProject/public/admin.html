@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Instructor Dashboard - Online Examination System | AGMR College</title>
+<meta name="description" content="Instructor command center for AGMR College Online Examination System."/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  theme: { extend: {
+    colors: {
+      "surface-container-highest":"#dee3e6","surface-tint":"#2f56c8","surface":"#f8f9fa",
+      "surface-variant":"#dee3e6","on-primary":"#faf8ff","surface-container":"#ebeef0",
+      "on-surface":"#2d3335","surface-container-low":"#f1f4f5","surface-container-high":"#e5e9eb",
+      "background":"#f8f9fa","on-surface-variant":"#5a6062","outline":"#767c7e",
+      "outline-variant":"#adb3b5","surface-container-lowest":"#ffffff",
+      "error":"#a8364b","error-container":"#f97386","primary":"#2f56c8","primary-dim":"#1f49bb",
+      "primary-container":"#6284f8","secondary-container":"#dde2f4","tertiary":"#6e567e",
+      "tertiary-container":"#ebccfc","on-secondary-container":"#4c5260","on-tertiary-container":"#594268",
+      "secondary":"#595f6e","on-error-container":"#6e0523","on-primary-container":"#000316",
+    },
+    fontFamily: { "headline":["Public Sans"], "body":["Inter"], "label":["Inter"] },
+    borderRadius: {"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},
+  }},
+}
+</script>
+<style>
+.material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+body { font-family: 'Inter', sans-serif; background-color: #f8f9fa; }
+h1,h2,h3 { font-family: 'Public Sans', sans-serif; }
+</style>
+</head>
+<body class="text-on-surface antialiased">
+
+<!-- College Header -->
+<div class="w-full bg-primary text-on-primary py-2 px-6 text-center">
+  <h1 class="text-sm font-bold tracking-tight" style="font-family:'Public Sans'">AGMR College of Engineering</h1>
+</div>
+
+<!-- SideNavBar -->
+<aside class="h-screen w-64 fixed left-0 top-0 pt-12 bg-slate-50 flex flex-col p-4 gap-2 z-40 hidden lg:flex">
+<div class="mb-8 px-2 py-4">
+<h1 class="text-lg font-black text-blue-900 tracking-tight">Instructor Panel</h1>
+<p class="text-xs font-medium text-blue-700/60 uppercase tracking-widest">AGMR College</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="bg-white text-blue-700 rounded-lg shadow-sm font-semibold flex items-center gap-3 px-4 py-3 transition-all" href="/admin">
+<span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">dashboard</span>
+<span class="text-sm">Overview</span>
+</a>
+<a class="text-slate-600 hover:bg-slate-200/50 flex items-center gap-3 px-4 py-3 rounded-lg transition-transform duration-200 hover:translate-x-1" href="/create-exam">
+<span class="material-symbols-outlined">add_circle</span>
+<span class="text-sm">Create Exam</span>
+</a>
+<a class="text-slate-600 hover:bg-slate-200/50 flex items-center gap-3 px-4 py-3 rounded-lg transition-transform duration-200 hover:translate-x-1" href="/results">
+<span class="material-symbols-outlined">analytics</span>
+<span class="text-sm">View Results</span>
+</a>
+</nav>
+<div class="mt-auto pt-4 border-t border-slate-200/50 space-y-1">
+<a href="/create-exam" class="w-full bg-primary text-on-primary rounded-xl py-3 px-4 font-bold text-sm mb-4 flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-sm">add</span>
+New Assessment
+</a>
+<a onclick="doLogout()" class="text-error hover:bg-error-container/10 flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sm font-medium cursor-pointer">
+<span class="material-symbols-outlined">logout</span>
+Logout
+</a>
+</div>
+</aside>
+
+<!-- TopNavBar -->
+<header class="fixed top-8 w-full z-30 bg-white/80 backdrop-blur-xl flex justify-between items-center px-8 h-16 lg:pl-72">
+<div class="flex items-center gap-4">
+<h2 class="text-xl font-bold tracking-tight text-blue-800">Online Exam System</h2>
+</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="text-blue-700 font-bold border-b-2 border-blue-700 pb-1 text-sm" href="/admin">Dashboard</a>
+<a class="text-slate-500 font-medium hover:text-blue-600 transition-colors duration-200 text-sm" href="/create-exam">Create Exam</a>
+<a class="text-slate-500 font-medium hover:text-blue-600 transition-colors duration-200 text-sm" href="/results">Results</a>
+</div>
+<div class="flex items-center gap-4">
+<button onclick="doLogout()" class="bg-error/10 text-error px-4 py-1.5 rounded-full text-xs font-bold tracking-tight uppercase hover:bg-error hover:text-white transition-all">
+Logout
+</button>
+</div>
+</header>
+
+<!-- Main Content -->
+<main class="pt-28 lg:pl-64 min-h-screen">
+<div class="max-w-7xl mx-auto px-6 lg:px-10 pb-20">
+
+<!-- Welcome Header -->
+<div class="mb-12">
+<h3 class="text-3xl font-extrabold text-on-surface tracking-tighter mb-2">Instructor Command Center</h3>
+<p class="text-on-surface-variant max-w-2xl leading-relaxed">Welcome back. Your dashboard is updated with the latest performance metrics.</p>
+</div>
+
+<!-- Top-Level Metrics -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+<div class="bg-surface-container-lowest p-8 rounded-2xl shadow-[0px_20px_40px_rgba(45,51,53,0.04)] flex flex-col justify-between h-48">
+<div class="flex justify-between items-start">
+<span class="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Total Students</span>
+<span class="material-symbols-outlined text-primary-container">groups</span>
+</div>
+<div>
+<div class="text-4xl font-black text-on-surface tracking-tighter" id="statStudents">-</div>
+<div class="text-xs text-primary-dim font-semibold mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">school</span> Registered students
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-8 rounded-2xl shadow-[0px_20px_40px_rgba(45,51,53,0.04)] flex flex-col justify-between h-48">
+<div class="flex justify-between items-start">
+<span class="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Total Exams</span>
+<span class="material-symbols-outlined text-primary-container">timer</span>
+</div>
+<div>
+<div class="text-4xl font-black text-on-surface tracking-tighter" id="statExams">-</div>
+<div class="text-xs text-on-surface-variant font-medium mt-1">Created assessments</div>
+</div>
+</div>
+<div class="bg-primary p-8 rounded-2xl shadow-[0px_24px_48px_rgba(47,86,200,0.15)] flex flex-col justify-between h-48 text-on-primary">
+<div class="flex justify-between items-start">
+<span class="text-xs font-bold uppercase tracking-widest opacity-80">Average Score</span>
+<span class="material-symbols-outlined opacity-80">stars</span>
+</div>
+<div>
+<div class="text-4xl font-black tracking-tighter" id="statAvg">-<span class="text-xl">%</span></div>
+<div class="text-xs font-medium mt-1 opacity-90">Total submissions: <span id="statResults">0</span></div>
+</div>
+</div>
+</div>
+
+<!-- Two-Column Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+
+<!-- Left: Subject + Student Management -->
+<div class="lg:col-span-4 space-y-8">
+
+<!-- Add Subject -->
+<div class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm border border-outline-variant/10">
+<div class="bg-primary/5 px-6 py-4 border-b border-outline-variant/10">
+<h4 class="text-sm font-bold text-primary uppercase tracking-widest">Add Subject</h4>
+</div>
+<div class="p-6 space-y-3">
+<input type="text" id="txtSubjectName" class="w-full bg-surface-container-high border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary transition-all" placeholder="Subject Name"/>
+<input type="text" id="txtSubjectCode" class="w-full bg-surface-container-high border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary transition-all" placeholder="Subject Code"/>
+<button onclick="addSubject()" class="w-full bg-primary text-on-primary py-3 rounded-xl font-bold text-sm hover:bg-primary-dim transition-all">Save Subject</button>
+</div>
+</div>
+
+<!-- Add Student -->
+<div class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm border border-outline-variant/10">
+<div class="bg-blue-50 px-6 py-4 border-b border-outline-variant/10">
+<h4 class="text-sm font-bold text-primary uppercase tracking-widest">Add Student</h4>
+</div>
+<div class="p-6 space-y-3">
+<input type="text" id="txtStudentName" class="w-full bg-surface-container-high border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary transition-all" placeholder="Full Name"/>
+<input type="text" id="txtStudentUSN" class="w-full bg-surface-container-high border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary transition-all" placeholder="USN"/>
+<input type="text" id="txtStudentEmail" class="w-full bg-surface-container-high border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary transition-all" placeholder="Email (optional)"/>
+<input type="text" id="txtStudentUsername" class="w-full bg-surface-container-high border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary transition-all" placeholder="Username"/>
+<input type="password" id="txtStudentPassword" class="w-full bg-surface-container-high border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary transition-all" placeholder="Password" value="pass123"/>
+<button onclick="addStudent()" class="w-full bg-primary text-on-primary py-3 rounded-xl font-bold text-sm hover:bg-primary-dim transition-all">Save Student</button>
+<hr class="border-outline-variant/20">
+<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-widest">Import Students (Excel)</label>
+<input type="file" id="fileStudents" class="w-full bg-surface-container-high border-none rounded-xl px-4 py-3 text-sm" accept=".xlsx,.xls"/>
+<button onclick="importStudents()" class="w-full bg-secondary-container text-primary py-3 rounded-xl font-bold text-sm hover:bg-primary hover:text-on-primary transition-all">Import</button>
+</div>
+</div>
+
+<!-- Clear All Section (DANGER ZONE) -->
+<div class="bg-red-50/30 rounded-2xl p-6 border border-red-100 flex flex-col gap-4">
+<div class="flex items-center gap-2 text-error">
+<span class="material-symbols-outlined">warning</span>
+<h4 class="text-xs font-bold uppercase tracking-widest">Danger Zone</h4>
+</div>
+<p class="text-[11px] text-on-surface-variant font-medium">Reset all student accounts, exams, questions and results to factory defaults.</p>
+<button onclick="doFactoryReset()" class="w-full bg-error text-on-primary py-3 rounded-xl font-bold text-sm hover:bg-red-700 transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm">database</span>
+Clear All Data
+</button>
+</div>
+
+
+</div>
+
+<!-- Right: Tables -->
+<div class="lg:col-span-8 space-y-8">
+
+<!-- Message Banner -->
+<div id="lblMsg" class="hidden px-6 py-3 rounded-xl text-sm font-bold"></div>
+
+<!-- All Exams -->
+<div class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm border border-outline-variant/10">
+<div class="flex justify-between items-center px-6 py-4 bg-surface-container-low">
+<h4 class="text-sm font-bold text-on-surface uppercase tracking-widest">All Exams</h4>
+<a href="/create-exam" class="text-sm font-semibold text-primary hover:underline">+ Create New</a>
+</div>
+<div class="overflow-x-auto" style="max-height: 400px; overflow-y: auto;">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low">
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">ID</th>
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Exam</th>
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Subject</th>
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Questions</th>
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Duration</th>
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container" id="examBody">
+<tr><td colspan="6" class="px-6 py-6 text-center text-on-surface-variant">Loading...</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<!-- All Students -->
+<div class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm border border-outline-variant/10">
+<div class="px-6 py-4 bg-surface-container-low">
+<h4 class="text-sm font-bold text-on-surface uppercase tracking-widest">Registered Students</h4>
+</div>
+<div class="overflow-x-auto" style="max-height: 350px; overflow-y: auto;">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low">
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">ID</th>
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Username</th>
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Name</th>
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">USN</th>
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Email</th>
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container" id="studentBody">
+<tr><td colspan="6" class="px-6 py-6 text-center text-on-surface-variant">Loading...</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<!-- Subjects -->
+<div class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm border border-outline-variant/10">
+<div class="px-6 py-4 bg-surface-container-low">
+<h4 class="text-sm font-bold text-on-surface uppercase tracking-widest">Subjects</h4>
+</div>
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low">
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">ID</th>
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Subject Name</th>
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Code</th>
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container" id="subjectBody">
+<tr><td colspan="4" class="px-6 py-6 text-center text-on-surface-variant">Loading...</td></tr>
+</tbody>
+</table>
+</div>
+
+
+</div>
+</div>
+</div>
+</main>
+
+<!-- Footer -->
+<footer class="bg-on-surface text-on-surface-variant/60 py-4 px-6 text-center lg:ml-64">
+  <p class="text-xs font-medium">Online Examination System</p>
+  <p class="text-[10px] mt-0.5">Developer: Sayed Zaid Kazi</p>
+</footer>
+
+<!-- Mobile Bottom Nav -->
+<nav class="lg:hidden fixed bottom-0 left-0 w-full flex justify-around items-center px-6 py-3 bg-white/90 backdrop-blur-lg border-t border-slate-100 z-50">
+<a class="flex flex-col items-center bg-blue-50 text-blue-700 rounded-xl px-4 py-1" href="/admin">
+<span class="material-symbols-outlined">home</span><span class="text-[10px] font-medium uppercase">Home</span>
+</a>
+<a class="flex flex-col items-center text-slate-400" href="/create-exam">
+<span class="material-symbols-outlined">add_circle</span><span class="text-[10px] font-medium uppercase">Create</span>
+</a>
+<a class="flex flex-col items-center text-slate-400" href="/results">
+<span class="material-symbols-outlined">grade</span><span class="text-[10px] font-medium uppercase">Results</span>
+</a>
+</nav>
+
+<script>
+async function doLogout() {
+  await fetch('/api/logout', { method: 'POST' });
+  window.location.href = '/login';
+}
+
+function showMsg(text, isError) {
+  const el = document.getElementById('lblMsg');
+  el.textContent = text;
+  el.className = isError
+    ? 'px-6 py-3 rounded-xl text-sm font-bold bg-error-container/10 text-error border border-error/20'
+    : 'px-6 py-3 rounded-xl text-sm font-bold bg-green-50 text-green-700 border border-green-200';
+  el.classList.remove('hidden');
+  setTimeout(() => { el.classList.add('hidden'); }, 4000);
+}
+
+async function loadAnalytics() {
+  try {
+    const res = await fetch('/api/analytics');
+    if (!res.ok) return;
+    const d = await res.json();
+    document.getElementById('statStudents').textContent = d.totalStudents || 0;
+    document.getElementById('statExams').textContent = d.totalExams || 0;
+    document.getElementById('statAvg').innerHTML = (d.avgScore || 0) + '<span class="text-xl">%</span>';
+    document.getElementById('statResults').textContent = d.totalResults || 0;
+  } catch (e) { /* ignore */ }
+}
+
+async function loadExams() {
+  try {
+    const res = await fetch('/api/exams');
+    if (!res.ok) return;
+    const exams = await res.json();
+    const tbody = document.getElementById('examBody');
+    if (!exams.length) { tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-6 text-center text-on-surface-variant">No exams</td></tr>'; return; }
+    tbody.innerHTML = exams.map(e => `<tr class="hover:bg-slate-50/50 transition-colors">
+      <td class="px-6 py-4 text-sm">${e.id}</td>
+      <td class="px-6 py-4 text-sm font-bold">${e.exam_name || e.name || ''}</td>
+      <td class="px-6 py-4 text-sm">${e.subjects?.subject_name || '-'}</td>
+      <td class="px-6 py-4 text-sm">${e.total_questions || 0}</td>
+      <td class="px-6 py-4 text-sm">${e.time_limit || 0} min</td>
+      <td class="px-6 py-4 text-sm text-right flex justify-end gap-2">
+        <button onclick="viewIncidents(${e.id})" class="text-primary hover:bg-primary-container p-2 rounded-full transition-all" title="View Proctor Incidents">
+          <span class="material-symbols-outlined text-[20px]">videocam</span>
+        </button>
+        <button onclick="deleteExam(${e.id})" class="text-error hover:bg-error-container/10 p-2 rounded-full transition-all" title="Delete Exam">
+          <span class="material-symbols-outlined text-[20px]">delete</span>
+        </button>
+      </td>
+    </tr>`).join('');
+  } catch (e) { /* ignore */ }
+}
+
+async function deleteExam(id) {
+  if (!confirm('Are you sure you want to delete this exam? This will also remove all related questions and results.')) return;
+  try {
+    const res = await fetch('/api/exams/' + id, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) {
+      showMsg('Exam deleted successfully');
+      loadExams();
+      loadAnalytics(); // to update total exams count
+    } else {
+      showMsg(data.error || 'Failed to delete exam', true);
+    }
+  } catch (e) {
+    showMsg('Error: ' + e.message, true);
+  }
+}
+
+async function loadSubjects() {
+  try {
+    const res = await fetch('/api/subjects');
+    if (!res.ok) return;
+    const subjects = await res.json();
+    const tbody = document.getElementById('subjectBody');
+    if (!subjects.length) { tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-6 text-center text-on-surface-variant">No subjects</td></tr>'; return; }
+    tbody.innerHTML = subjects.map(s => `<tr class="hover:bg-slate-50/50 transition-colors">
+      <td class="px-6 py-4 text-sm">${s.id}</td>
+      <td class="px-6 py-4 text-sm font-medium">${s.subject_name || ''}</td>
+      <td class="px-6 py-4 text-sm">${s.subject_code || ''}</td>
+      <td class="px-6 py-4 text-sm text-right">
+        <button onclick="deleteSubject(${s.id})" class="text-error hover:bg-error-container/10 p-2 rounded-full transition-all" title="Delete Subject">
+          <span class="material-symbols-outlined text-[20px]">delete_forever</span>
+        </button>
+      </td>
+    </tr>`).join('');
+  } catch (e) { /* ignore */ }
+}
+
+async function deleteSubject(id) {
+  if (!confirm('Delete this subject? This might affect existing exams.')) return;
+  try {
+    const res = await fetch('/api/subjects/' + id, { method: 'DELETE' });
+    if (res.ok) { showMsg('Subject deleted'); loadSubjects(); }
+    else { const d = await res.json(); showMsg(d.error || 'Failed', true); }
+  } catch (e) { showMsg('Error: ' + e.message, true); }
+}
+
+
+async function addSubject() {
+  const name = document.getElementById('txtSubjectName').value.trim();
+  const code = document.getElementById('txtSubjectCode').value.trim();
+  if (!name) { alert('Enter subject name'); return; }
+  try {
+    const res = await fetch('/api/subjects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subject_name: name, subject_code: code }) });
+    const data = await res.json();
+    if (res.ok) { showMsg('Subject added successfully'); document.getElementById('txtSubjectName').value = ''; document.getElementById('txtSubjectCode').value = ''; loadSubjects(); }
+    else showMsg(data.error || 'Failed', true);
+  } catch (e) { showMsg('Error: ' + e.message, true); }
+}
+
+async function loadStudents() {
+  try {
+    const res = await fetch('/api/students');
+    if (!res.ok) return;
+    const students = await res.json();
+    const tbody = document.getElementById('studentBody');
+    if (!students.length) { tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-6 text-center text-on-surface-variant">No students</td></tr>'; return; }
+    tbody.innerHTML = students.map(s => `<tr class="hover:bg-slate-50/50 transition-colors">
+      <td class="px-6 py-4 text-sm">${s.id}</td>
+      <td class="px-6 py-4 text-sm font-medium">${s.username || ''}</td>
+      <td class="px-6 py-4 text-sm">${s.name || ''}</td>
+      <td class="px-6 py-4 text-sm">${s.usn || ''}</td>
+      <td class="px-6 py-4 text-sm">${s.email || ''}</td>
+      <td class="px-6 py-4 text-sm text-right">
+        <button onclick="deleteStudent(${s.id})" class="text-error hover:bg-error-container/10 p-2 rounded-full transition-all" title="Delete Student">
+          <span class="material-symbols-outlined text-[20px]">person_remove</span>
+        </button>
+      </td>
+    </tr>`).join('');
+  } catch (e) { /* ignore */ }
+}
+
+async function deleteStudent(id) {
+  if (!confirm('Are you sure you want to delete this student? All their exam results will be wiped.')) return;
+  try {
+    const res = await fetch('/api/students/' + id, { method: 'DELETE' });
+    if (res.ok) { showMsg('Student deleted'); loadStudents(); loadAnalytics(); }
+    else { const d = await res.json(); showMsg(d.error || 'Failed', true); }
+  } catch (e) { showMsg('Error: ' + e.message, true); }
+}
+
+
+async function addStudent() {
+  const name = document.getElementById('txtStudentName').value.trim();
+  const usn = document.getElementById('txtStudentUSN').value.trim();
+  const email = document.getElementById('txtStudentEmail').value.trim();
+  const username = document.getElementById('txtStudentUsername').value.trim();
+  const password = document.getElementById('txtStudentPassword').value.trim();
+  if (!username) { alert('Enter username'); return; }
+  if (!password) { alert('Enter password'); return; }
+  try {
+    const res = await fetch('/api/students', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, usn, email, username, password }) });
+    const data = await res.json();
+    if (res.ok && data.success) { showMsg('Student added successfully'); loadStudents(); loadAnalytics(); }
+    else showMsg(data.error || 'Failed', true);
+  } catch (e) { showMsg('Error: ' + e.message, true); }
+}
+
+async function importStudents() {
+  const file = document.getElementById('fileStudents').files[0];
+  if (!file) { alert('Select a file'); return; }
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const res = await fetch('/api/students/import', { method: 'POST', body: form });
+    const data = await res.json();
+    if (res.ok) { showMsg('Imported ' + data.inserted + ' students'); loadStudents(); loadAnalytics(); }
+    else showMsg(data.error || 'Failed', true);
+  } catch (e) { showMsg('Error: ' + e.message, true); }
+}
+
+async function doFactoryReset() {
+  if (!confirm('EXTREME DANGER: This will delete ALL students, exams, assessments, and results. Are you ABSOLUTELY sure?')) return;
+  if (!confirm('FINAL WARNING: This action is irreversible. Proceed?')) return;
+  try {
+    const res = await fetch('/api/factory-reset', { method: 'POST' });
+    if (res.ok) { window.location.reload(); }
+    else { const d = await res.json(); showMsg(d.error || 'Failed', true); }
+  } catch (e) { showMsg('Error: ' + e.message, true); }
+}
+
+loadAnalytics();
+loadExams();
+loadSubjects();
+loadStudents();
+
+window.currentExamViewId = null;
+
+async function viewIncidents(examId) {
+  window.currentExamViewId = examId;
+  const modal = document.getElementById('incidentsModal');
+  const content = document.getElementById('incidentsContent');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  content.innerHTML = '<div class="col-span-full py-12 text-center text-slate-500">Loading incidents...</div>';
+  try {
+    const res = await fetch('/api/incidents/' + examId);
+    const data = await res.json();
+    if (!data || data.length === 0) {
+      content.innerHTML = '<div class="col-span-full py-12 text-center text-slate-500">No incidents reported for this exam! ✅</div>';
+      return;
+    }
+    content.innerHTML = data.map(inc => `
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="bg-slate-100 p-2 text-xs font-bold text-slate-600 flex justify-between border-b border-slate-200">
+          <span>${new Date(inc.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+          <span class="text-red-500 uppercase">${inc.type?.replace('_', ' ') || 'FLAGGED'}</span>
+        </div>
+        ${inc.image_url ? `<img src="${inc.image_url}" class="w-full h-40 object-cover" />` : `<div class="w-full h-40 flex items-center justify-center bg-slate-50 border-b border-slate-100 text-slate-300 text-xs italic"><span class="material-symbols-outlined mr-1">no_photography</span> No Snapshot</div>`}
+        <div class="p-4">
+          <div class="flex justify-between items-start mb-2">
+            <div>
+              <p class="text-sm font-bold text-slate-900">${inc.students?.name || 'Student ID: ' + inc.user_id}</p>
+              <p class="text-xs text-slate-500">USN: ${inc.students?.usn || 'N/A'}</p>
+            </div>
+            <span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-1 rounded">Flagged</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error("Incidents fetch error:", e);
+    content.innerHTML = '<div class="col-span-full py-12 text-center text-red-500">Error loading incidents</div>';
+  }
+}
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // Setup Realtime Subscription
+  const _supabase = window.supabase.createClient('https://ttmdiobkwbxyhyasttke.supabase.co', 'sb_publishable_6FWcaoaf5jdqVSB0ZBjWfA_mRwgVzt6');
+  _supabase
+    .channel('admin-warnings-monitor')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'warnings' }, payload => {
+       console.log("Realtime Warning Received:", payload);
+       if (window.currentExamViewId && window.currentExamViewId == payload.new.exam_id) {
+           viewIncidents(window.currentExamViewId);
+       }
+    })
+    .subscribe();
+</script>
+
+<!-- Incidents Modal -->
+<div id="incidentsModal" class="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+  <div class="bg-surface-container-lowest w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden flex flex-col" style="max-height: 90vh;">
+    <div class="px-6 py-5 flex justify-between items-center border-b border-outline-variant/20 bg-surface-container-low">
+      <div>
+        <h3 class="text-xl font-bold text-on-surface flex items-center gap-2">
+            <span class="material-symbols-outlined text-error">policy</span>
+            Proctoring Incidents
+        </h3>
+        <p class="text-xs text-on-surface-variant mt-1">Review AI flagged violations and snapshots</p>
+      </div>
+      <button onclick="document.getElementById('incidentsModal').classList.add('hidden');document.getElementById('incidentsModal').classList.remove('flex')" class="p-2 rounded-full hover:bg-slate-200 transition-colors text-slate-600">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="p-6 overflow-y-auto flex-1 bg-slate-100">
+      <div id="incidentsContent" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"></div>
+    </div>
+  </div>
+</div>
+</body></html>

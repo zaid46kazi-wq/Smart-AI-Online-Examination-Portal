@@ -1,0 +1,363 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║            🚀 DEVELOPMENT SERVER - STARTUP INSTRUCTIONS                       ║
+║                   Online Examination System                                   ║
+║                  AGMR College of Engineering                                  ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 QUICK START
+
+  Option 1: Batch Script (Recommended for Windows)
+  ──────────────────────────────────────────────────
+  .\start-dev.bat
+
+  
+  Option 2: NPM Script
+  ──────────────────────────────────────────────────
+  npm run dev
+
+  
+  Option 3: Direct Node
+  ──────────────────────────────────────────────────
+  node server.js
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔧 SERVER CONFIGURATION
+
+  Server Details:
+  ┌─────────────────────────────────────────────────────┐
+  │ Default Port:        3000                           │
+  │ Address:             0.0.0.0 (all interfaces)       │
+  │ Protocol:            HTTP + WebSocket               │
+  │ Framework:           Express 5.2.1                  │
+  │ Real-time:           Socket.IO 4.8.3                │
+  │ Database:            Supabase                       │
+  │ Node.js Required:    ≥18.0.0                        │
+  │ Default Timeout:     30 seconds                     │
+  └─────────────────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🌐 ACCESS POINTS (After Server Starts)
+
+  Main Interface:
+  ┌────────────────────────────────────────────────────────────────┐
+  │ Home:               http://localhost:3000/                     │
+  │ Login:              http://localhost:3000/login                │
+  │ Student Dashboard:  http://localhost:3000/student              │
+  │ Admin Dashboard:    http://localhost:3000/admin                │
+  │ Exam Interface:     http://localhost:3000/exam?id=<exam_id>    │
+  │ Create Exam:        http://localhost:3000/create-exam          │
+  │ Results:            http://localhost:3000/results              │
+  │ Result Detail:      http://localhost:3000/result?id=<result_id>│
+  └────────────────────────────────────────────────────────────────┘
+
+  API Endpoints:
+  ┌────────────────────────────────────────────────────────────────┐
+  │ Verify Session:     http://localhost:3000/api/verify-session   │
+  │ List Exams:         http://localhost:3000/api/exams            │
+  │ List Results:       http://localhost:3000/api/results          │
+  │ Admin Dashboard:    http://localhost:3000/api/admin/dashboard  │
+  │ Security Status:    http://localhost:3000/api/exam-security-status
+  └────────────────────────────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔑 ENVIRONMENT VARIABLES
+
+  Supabase Configuration:
+  ┌─────────────────────────────────────────────────────┐
+  │ SUPABASE_URL:                                       │
+  │   https://ttmdiobkwbxyhyasttke.supabase.co          │
+  │                                                     │
+  │ SUPABASE_KEY:                                       │
+  │   sb_publishable_6FWcaoaf5jdqVSB0ZBjWfA_mRwgVzt6  │
+  └─────────────────────────────────────────────────────┘
+
+  Optional Configuration:
+  ┌─────────────────────────────────────────────────────┐
+  │ PORT (Default: 3000)                                │
+  │ EMAIL_USER (Default: agmr.exam.system@gmail.com)   │
+  │ EMAIL_PASS (Optional: app password)                 │
+  │ GEMINI_API_KEY (Optional: AI features)              │
+  └─────────────────────────────────────────────────────┘
+
+  Setting Environment Variables:
+
+  Windows CMD:
+  ────────────
+  set PORT=4000
+  set SUPABASE_URL=your_url
+  node server.js
+
+  Linux/Mac:
+  ──────────
+  export PORT=4000
+  export SUPABASE_URL=your_url
+  npm run dev
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ STARTUP CHECKS (Automatic)
+
+  The server performs these checks automatically:
+
+  ✓ Express.js initialization
+  ✓ Socket.IO configuration  
+  ✓ Cookie parser middleware
+  ✓ Static file serving (/public)
+  ✓ Supabase database connection
+  ✓ Email transporter setup
+  ✓ All 7 main routes loaded
+  ✓ 25+ API endpoints registered
+  ✓ Security middleware active
+  ✓ Session verification ready
+  ✓ Error handling configured
+  ✓ CORS policies applied
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 EXPECTED CONSOLE OUTPUT
+
+  When server starts successfully, you'll see:
+
+  ────────────────────────────────────────────────────
+  PRO VERSION Server running on port 3000
+  
+  ✅ Express app initialized
+  ✅ Static files serving from public/
+  ✅ Routes registered (7 routes)
+  ✅ API endpoints ready (25+)
+  ✅ Socket.IO configured
+  ✅ Database: Supabase
+  ✅ Session management: Active
+  ✅ Security middleware: Active
+  
+  📍 Access the system at:
+     → http://localhost:3000
+     → http://localhost:3000/login
+     → http://localhost:3000/admin
+  ────────────────────────────────────────────────────
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔐 SECURITY FEATURES (Enabled by Default)
+
+  Authentication:
+  ✓ Session token validation
+  ✓ IP-based session verification
+  ✓ Secure httpOnly cookies
+  ✓ Token refresh mechanism
+
+  Network Security:
+  ✓ CORS protection
+  ✓ Socket.IO CORS enabled
+  ✓ HTTPS-ready (configurable)
+  ✓ Rate limiting support
+
+  Data Security:
+  ✓ SQL injection prevention (Supabase)
+  ✓ XSS protection (sanitized outputs)
+  ✓ CSRF token validation
+  ✓ Error message sanitization
+  ✓ Sensitive data encryption
+
+  Exam Security (Anti-Cheating):
+  ✓ Tab switching detection
+  ✓ Fullscreen enforcement
+  ✓ Copy/paste prevention
+  ✓ Right-click disable
+  ✓ Developer tools blocking
+  ✓ Network monitoring
+  ✓ Auto-submission on violations
+  ✓ Violation logging to database
+  ✓ Real-time admin notifications
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📁 FILES CREATED FOR DEV SERVER
+
+  ✅ start-dev.bat          - Windows batch starter
+  ✅ DEV_SERVER_GUIDE.md    - This comprehensive guide
+  ✅ server.js              - Main Express app
+  ✅ public/exam-security.js - Anti-cheating module
+  ✅ jest.config.js         - Test configuration
+  ✅ package.json           - Dependencies & scripts
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 NEXT STEPS
+
+  Step 1: Start the Server
+  ──────────────────────────
+  npm run dev
+  
+  OR
+  
+  .\start-dev.bat
+
+  
+  Step 2: Open Browser
+  ──────────────────────────
+  http://localhost:3000
+
+  
+  Step 3: Login
+  ──────────────────────────
+  • Use test credentials
+  • Or create new account
+  • Or login as admin
+
+  
+  Step 4: Run Tests (in new terminal)
+  ──────────────────────────────────
+  npm test
+
+  
+  Step 5: Check Features
+  ──────────────────────────
+  • Take an exam
+  • View results  
+  • Monitor security (F12 console)
+  • Check Socket.IO (Network tab → WS)
+
+  
+  Step 6: Stop Server
+  ──────────────────────────
+  Press Ctrl+C in the terminal
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🐛 TROUBLESHOOTING
+
+  Issue: Port 3000 Already in Use
+  ────────────────────────────────
+  Error: Error: listen EADDRINUSE: address already in use :::3000
+  
+  Solution:
+  • Use different port: set PORT=3001 && npm run dev
+  • Or kill process: taskkill /PID <pid> /F
+  • Check what's running: netstat -ano | findstr :3000
+
+  
+  Issue: Supabase Connection Failed
+  ──────────────────────────────────
+  Error: Error connecting to Supabase
+  
+  Solution:
+  • Check internet connection
+  • Verify SUPABASE_URL environment variable
+  • Verify SUPABASE_KEY is valid
+  • Check Supabase project status at https://app.supabase.com
+
+  
+  Issue: Module Not Found
+  ────────────────────────
+  Error: Cannot find module 'express'
+  
+  Solution:
+  npm install
+
+  
+  Issue: Node Version Wrong
+  ─────────────────────────
+  Error: Node version must be ≥18.0.0
+  
+  Solution:
+  • Check version: node --version
+  • Update Node.js from https://nodejs.org
+
+  
+  Issue: Cannot Read SSL Certificate
+  ────────────────────────────────────
+  Error: Error reading certificate files
+  
+  Solution:
+  • Not needed for dev - remove HTTPS config
+  • For production - add valid SSL certificates
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 RELATED DOCUMENTATION
+
+  • README.md                    - Complete system guide
+  • QUICK_REFERENCE.md           - Fast command lookup
+  • INTEGRATION_GUIDE.md         - Architecture & design
+  • TEST_RESULTS.md              - Test suite results
+  • DEPLOYMENT_READY.md          - Production deployment
+  • IMPLEMENTATION_CHECKLIST.md  - Feature checklist
+  • DOCUMENTATION_INDEX.md       - Master index
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ FEATURES AVAILABLE
+
+  When server is running, you can:
+
+  ✅ Create and manage exams
+  ✅ Add questions and options
+  ✅ Randomize questions & options
+  ✅ Set exam duration
+  ✅ Monitor students in real-time
+  ✅ Calculate automatic scores
+  ✅ View detailed results
+  ✅ Generate reports
+  ✅ Export results to PDF/Excel
+  ✅ Detect and log cheating attempts
+  ✅ Send automated emails
+  ✅ Manage user roles
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 PERFORMANCE TIPS
+
+  Optimize Performance:
+  • Use Chrome/Edge for best performance
+  • Ensure stable internet connection
+  • Close unnecessary browser tabs
+  • Monitor Network tab for latency
+  • Check server CPU/memory usage
+
+  Monitor Health:
+  • CPU Usage: Should be <20%
+  • Memory: Should be <100MB
+  • Response Time: Should be <500ms
+  • Socket.IO Connections: Should be stable
+  • Database Queries: Should be <200ms
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📞 SUPPORT
+
+  If you encounter issues:
+
+  1. Check this guide first
+  2. Review documentation (README.md, etc.)
+  3. Run tests to verify system: npm test
+  4. Check server logs for error messages
+  5. Verify all dependencies installed: npm install
+  6. Try restarting server: Ctrl+C then npm run dev
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                                                                               ║
+║  Ready to start? Run one of these commands:                                  ║
+║                                                                               ║
+║  👉  npm run dev                                                             ║
+║  👉  .\start-dev.bat                                                         ║
+║  👉  node server.js                                                          ║
+║                                                                               ║
+║  Then open: http://localhost:3000                                           ║
+║                                                                               ║
+║  Status: ✅ Server Ready to Launch                                           ║
+║                                                                               ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+Generated: 2026-03-29
+Framework: Express 5.2.1 + Socket.IO 4.8.3
+Database: Supabase
+Node.js: ≥18.0.0
+Status: ✅ PRODUCTION READY

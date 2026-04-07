@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-primary mb-4 shadow-sm">
+        <div class="container d-flex justify-content-between">
+            <span class="navbar-brand fw-bold">Student Portal</span>
+            <div>
+                 <span class="text-white me-3 fw-bold" id="lblUser">Welcome, Student</span>
+                 <button id="btnLogout" class="btn btn-outline-light btn-sm">Logout</button>
+            </div>
+        </div>
+    </nav>
+    <div class="container text-center">
+        <div class="card mx-auto shadow-sm border-0 mb-4" style="max-width: 500px;">
+            <div class="card-body p-5">
+                <h4 class="card-title fw-bold">Start Your Test</h4>
+                <p class="text-muted mt-3">You will be given exactly <strong>60 seconds</strong> to finish. Anti-cheat measures are active.</p>
+                <a href="/exam.html" class="btn btn-success btn-lg w-100 mt-3 shadow">Begin Examination</a>
+            </div>
+        </div>
+
+        <div class="card mx-auto shadow-sm border-0" style="max-width: 500px;">
+            <div class="card-header bg-dark text-white fw-bold">🏆 Global Leaderboard (Top 5)</div>
+            <div class="card-body p-0">
+                <table class="table table-striped mb-0 text-center" id="leaderTable">
+                    <thead>
+                        <tr><th>Student</th><th>Best Score</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getCookie(name) {
+            const val = `; ${document.cookie}`;
+            const parts = val.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        const user = decodeURIComponent(getCookie('user') || '');
+        if (!user || getCookie('role') !== 'Student') window.location.href = '/';
+        document.getElementById('lblUser').innerText = `Welcome, ${user}`;
+
+        async function loadLeaderboard() {
+            const res = await fetch('/api/leaderboard');
+            if (res.ok) {
+                const data = await res.json();
+                const tb = document.querySelector('#leaderTable tbody');
+                data.forEach(r => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${r.Username}</td><td>${r.Score}</td>`;
+                    tb.appendChild(tr);
+                });
+            }
+        }
+
+        document.getElementById('btnLogout').addEventListener('click', async () => {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/';
+        });
+
+        loadLeaderboard();
+    </script>
+</body>
+</html>

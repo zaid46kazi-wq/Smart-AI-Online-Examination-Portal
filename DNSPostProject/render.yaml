@@ -1,0 +1,23 @@
+# Render Blueprint — Online Examination System PRO
+# AGMR College of Engineering
+# Deploy: Connect your GitHub repo to Render and it will auto-detect this file.
+
+services:
+  - type: web
+    name: agmr-exam-system
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false

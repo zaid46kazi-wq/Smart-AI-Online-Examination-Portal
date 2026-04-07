@@ -1,0 +1,47 @@
+{
+  "name": "online-exam-system",
+  "version": "2.0.0",
+  "description": "Online Examination System PRO - AGMR College of Engineering",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "deploy-db": "node deploy-db.js",
+    "dev": "node server.js",
+    "test": "jest --passWithNoTests",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "exam",
+    "online",
+    "proctoring",
+    "agmr"
+  ],
+  "author": "Sayed Zaid Kazi",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@google/genai": "^1.46.0",
+    "@supabase/supabase-js": "^2.99.2",
+    "compression": "^1.7.4",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^7.1.5",
+    "mssql": "^12.2.1",
+    "multer": "^2.1.1",
+    "nodemailer": "^8.0.3",
+    "pdfjs-dist": "^5.5.207",
+    "pdfkit": "^0.18.0",
+    "pg": "^8.20.0",
+    "socket.io": "^4.8.3",
+    "sqlite3": "^6.0.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Academic Sanctuary - Exam Creator</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;800;900&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-highest": "#dee3e6",
+              "surface-tint": "#2f56c8",
+              "tertiary-fixed-dim": "#dcbfed",
+              "surface": "#f8f9fa",
+              "on-secondary-container": "#4c5260",
+              "surface-variant": "#dee3e6",
+              "on-primary": "#faf8ff",
+              "tertiary-fixed": "#ebccfc",
+              "on-tertiary-fixed-variant": "#634b72",
+              "secondary-fixed-dim": "#cfd4e6",
+              "on-secondary-fixed-variant": "#555b6a",
+              "surface-container": "#ebeef0",
+              "on-surface": "#2d3335",
+              "surface-bright": "#f8f9fa",
+              "on-primary-fixed-variant": "#001040",
+              "inverse-surface": "#0c0f10",
+              "on-tertiary-container": "#594268",
+              "primary-dim": "#1f49bb",
+              "tertiary-dim": "#614a71",
+              "primary-container": "#6284f8",
+              "secondary-container": "#dde2f4",
+              "secondary-fixed": "#dde2f4",
+              "surface-container-low": "#f1f4f5",
+              "surface-container-high": "#e5e9eb",
+              "on-primary-container": "#000316",
+              "background": "#f8f9fa",
+              "tertiary-container": "#ebccfc",
+              "on-surface-variant": "#5a6062",
+              "inverse-on-surface": "#9b9d9e",
+              "error-container": "#f97386",
+              "outline": "#767c7e",
+              "secondary-dim": "#4d5362",
+              "primary-fixed-dim": "#5477ea",
+              "on-tertiary": "#fff6fd",
+              "surface-container-lowest": "#ffffff",
+              "error-dim": "#6b0221",
+              "error": "#a8364b",
+              "outline-variant": "#adb3b5",
+              "on-primary-fixed": "#000000",
+              "on-secondary": "#f9f8ff",
+              "surface-dim": "#d5dbdd",
+              "secondary": "#595f6e",
+              "primary-fixed": "#6284f8",
+              "on-error": "#fff7f7",
+              "on-secondary-fixed": "#393f4d",
+              "on-background": "#2d3335",
+              "on-tertiary-fixed": "#452f54",
+              "on-error-container": "#6e0523",
+              "tertiary": "#6e567e",
+              "primary": "#2f56c8",
+              "inverse-primary": "#678afe"
+            },
+            fontFamily: {
+              "headline": ["Public Sans"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-background font-body text-on-surface selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl flex justify-between items-center px-8 h-16 max-w-full mx-auto">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tight text-blue-800 dark:text-blue-300 font-headline">Academic Sanctuary</span>
+<div class="hidden md:flex gap-6 items-center">
+<a class="text-slate-500 dark:text-slate-400 font-medium hover:text-blue-600 dark:hover:text-blue-300 transition-colors duration-200" href="#">Dashboard</a>
+<a class="text-blue-700 dark:text-blue-400 font-bold border-b-2 border-blue-700 dark:border-blue-400 pb-1" href="#">Exams</a>
+<a class="text-slate-500 dark:text-slate-400 font-medium hover:text-blue-600 dark:hover:text-blue-300 transition-colors duration-200" href="#">Reports</a>
+<a class="text-slate-500 dark:text-slate-400 font-medium hover:text-blue-600 dark:hover:text-blue-300 transition-colors duration-200" href="#">Management</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">notifications</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">help_outline</button>
+<div class="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden">
+<img alt="Student profile picture" class="w-full h-full object-cover" data-alt="Professional female academic headshot" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBYRonhq0XRFCQWJnvqkHm158Y6294v9kaZByhZXfvN0j8XrIePHjLENIP5V9_XL-uEidympoWePek_t_6UqQfCUUL6ZqcBuOqWvi5rVDknedT3PJfTZiTmu14EZXJRz4NntTh_uLHWidWUbH-WXCHRjn8yzEzslHLQ6r8msVJJ9Vdq0GyAXLoAstEKAwAR8SoqiwYtaBDzFkZVJijd5IUOptMJCPx4ynJTgJCnrRWOHcwAcwZ6RHj42rZvlsiEiTiXy_ajr16ZuZU"/>
+</div>
+<button class="bg-primary text-on-primary px-5 py-2 rounded-xl font-semibold text-sm hover:translate-y-[-1px] transition-transform">Start Exam</button>
+</div>
+</nav>
+<!-- Sidebar (Exam Outline) -->
+<aside class="h-screen w-64 fixed left-0 top-0 pt-20 bg-slate-50 dark:bg-slate-950 flex flex-col p-4 gap-2 border-r border-slate-100/50">
+<div class="px-3 mb-6">
+<h2 class="text-lg font-black text-blue-900 dark:text-blue-100 font-headline">Intellectual Sanctuary</h2>
+<p class="text-xs text-on-surface-variant font-medium uppercase tracking-widest">Exam Builder</p>
+</div>
+<nav class="flex-1 space-y-1 overflow-y-auto no-scrollbar">
+<div class="px-3 py-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Exam Outline</div>
+<a class="flex items-center gap-3 px-3 py-2 bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-300 rounded-lg shadow-sm font-semibold transition-transform hover:translate-x-1" href="#">
+<span class="material-symbols-outlined text-[20px]">description</span>
+<span class="text-sm">Exam Details</span>
+</a>
+<div class="mt-4 space-y-1">
+<div class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-lg transition-transform hover:translate-x-1">
+<span class="text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full bg-surface-container text-on-surface-variant">Q1</span>
+<span class="text-sm truncate">Introduction to Logic</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-lg transition-transform hover:translate-x-1">
+<span class="text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full bg-surface-container text-on-surface-variant">Q2</span>
+<span class="text-sm truncate">Historical Context</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-lg transition-transform hover:translate-x-1">
+<span class="text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full bg-surface-container text-on-surface-variant">Q3</span>
+<span class="text-sm truncate">Complex Variables</span>
+</div>
+</div>
+<button class="mt-4 w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200 rounded-xl text-sm font-bold border border-blue-100 dark:border-blue-800/50">
+<span class="material-symbols-outlined text-[18px]">add_circle</span>
+                New Assessment
+            </button>
+</nav>
+<footer class="mt-auto pt-4 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-lg transition-transform hover:translate-x-1" href="#">
+<span class="material-symbols-outlined text-[20px]">contact_support</span>
+<span class="text-sm">Support</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-lg transition-transform hover:translate-x-1" href="#">
+<span class="material-symbols-outlined text-[20px]">logout</span>
+<span class="text-sm">Logout</span>
+</a>
+</footer>
+</aside>
+<!-- Main Content -->
+<main class="ml-64 pt-24 pb-12 px-12 max-w-6xl mx-auto">
+<!-- Header Section -->
+<header class="mb-12">
+<div class="flex items-center gap-2 text-on-surface-variant mb-2">
+<span class="text-xs font-bold uppercase tracking-widest font-label">Exam Creator</span>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+<span class="text-xs font-bold uppercase tracking-widest font-label text-primary">Untitled Draft</span>
+</div>
+<div class="flex justify-between items-end">
+<h1 class="text-4xl font-black text-on-surface tracking-tight font-headline">Build New Assessment</h1>
+<div class="flex gap-3">
+<button class="px-6 py-2.5 bg-surface-container-low text-on-secondary-container font-semibold rounded-xl hover:bg-surface-container transition-colors">Save Draft</button>
+<button class="px-6 py-2.5 bg-primary text-on-primary font-semibold rounded-xl hover:translate-y-[-2px] transition-all shadow-lg shadow-primary/20">Publish Exam</button>
+</div>
+</div>
+</header>
+<div class="grid grid-cols-12 gap-12 items-start">
+<!-- Exam Details Card -->
+<section class="col-span-12 space-y-8">
+<div class="bg-surface-container-lowest p-10 rounded-[2rem] border border-outline-variant/10 shadow-sm">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+<div class="md:col-span-2 space-y-6">
+<div>
+<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2 font-label">Exam Title</label>
+<input class="w-full bg-surface-container-high border-none rounded-xl px-4 py-3 text-lg font-medium focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest transition-all placeholder:text-outline" placeholder="e.g. Advanced Quantum Mechanics Finals" type="text"/>
+</div>
+<div>
+<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2 font-label">Description</label>
+<textarea class="w-full bg-surface-container-high border-none rounded-xl px-4 py-3 text-on-surface focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest transition-all placeholder:text-outline" placeholder="Briefly describe the learning objectives and scope of this assessment..." rows="4"></textarea>
+</div>
+</div>
+<div class="space-y-6 bg-surface-container-low p-6 rounded-2xl">
+<div>
+<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2 font-label">Duration (Minutes)</label>
+<div class="relative">
+<span class="absolute inset-y-0 left-3 flex items-center material-symbols-outlined text-on-surface-variant">timer</span>
+<input class="w-full bg-surface-container-lowest border-none rounded-xl pl-10 pr-4 py-3 focus:ring-2 focus:ring-primary transition-all" placeholder="60" type="number"/>
+</div>
+</div>
+<div>
+<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2 font-label">Points Total</label>
+<div class="relative">
+<span class="absolute inset-y-0 left-3 flex items-center material-symbols-outlined text-on-surface-variant">award_star</span>
+<input class="w-full bg-surface-container-highest/50 border-none rounded-xl pl-10 pr-4 py-3 cursor-not-allowed" placeholder="100" readonly="" type="number"/>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Question Builder -->
+<section class="col-span-12 space-y-8">
+<div class="flex items-center justify-between">
+<h3 class="text-xl font-bold tracking-tight text-on-surface font-headline">Question Builder</h3>
+<div class="h-[2px] flex-1 mx-6 bg-surface-container-highest"></div>
+<div class="flex gap-2">
+<button class="p-2 rounded-lg bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+<button class="p-2 rounded-lg bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined">sort</span>
+</button>
+</div>
+</div>
+<!-- Existing Question Card (Template) -->
+<div class="bg-surface-container-lowest rounded-[2rem] overflow-hidden border border-outline-variant/15 shadow-sm">
+<div class="bg-surface-container-low px-8 py-3 flex justify-between items-center">
+<div class="flex gap-4">
+<span class="text-xs font-bold bg-primary/10 text-primary px-3 py-1 rounded-full uppercase tracking-widest font-label">Question 1</span>
+<span class="text-xs font-bold text-on-surface-variant uppercase tracking-widest font-label">Multiple Choice</span>
+</div>
+<div class="flex gap-4">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary text-[20px]">content_copy</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-error text-[20px]">delete</button>
+<button class="material-symbols-outlined text-on-surface-variant text-[20px]">drag_indicator</button>
+</div>
+</div>
+<div class="p-8 space-y-6">
+<input class="w-full bg-transparent border-none text-xl font-medium p-0 focus:ring-0 text-on-surface mb-2" type="text" value="Which of the following principles best describes the Heisenberg Uncertainty Principle?"/>
+<div class="space-y-3">
+<div class="flex items-center gap-4 group">
+<div class="w-6 h-6 rounded-full border-2 border-primary flex items-center justify-center bg-primary">
+<span class="material-symbols-outlined text-[16px] text-white">check</span>
+</div>
+<input class="flex-1 bg-surface-container-low rounded-xl px-4 py-3 border-none focus:ring-2 focus:ring-primary focus:bg-white transition-all" type="text" value="Position and momentum cannot be simultaneously measured with infinite precision."/>
+<button class="opacity-0 group-hover:opacity-100 material-symbols-outlined text-on-surface-variant">close</button>
+</div>
+<div class="flex items-center gap-4 group">
+<div class="w-6 h-6 rounded-full border-2 border-outline flex items-center justify-center"></div>
+<input class="flex-1 bg-surface-container-low rounded-xl px-4 py-3 border-none focus:ring-2 focus:ring-primary focus:bg-white transition-all" type="text" value="Energy is always conserved in a closed quantum system."/>
+<button class="opacity-0 group-hover:opacity-100 material-symbols-outlined text-on-surface-variant">close</button>
+</div>
+<div class="flex items-center gap-4 group">
+<div class="w-6 h-6 rounded-full border-2 border-outline flex items-center justify-center"></div>
+<input class="flex-1 bg-surface-container-low/50 rounded-xl px-4 py-3 border-none border-dashed border-outline-variant hover:bg-surface-container-low transition-all italic text-on-surface-variant" placeholder="Add option..." type="text"/>
+</div>
+</div>
+<div class="flex items-center justify-between pt-6 border-t border-surface-container-high">
+<div class="flex items-center gap-4">
+<span class="text-xs font-bold text-on-surface-variant uppercase tracking-widest font-label">Points</span>
+<input class="w-16 bg-surface-container-low rounded-lg px-3 py-1 border-none focus:ring-1 focus:ring-primary text-sm font-bold text-center" type="number" value="10"/>
+</div>
+<button class="flex items-center gap-2 text-primary text-sm font-bold hover:opacity-80 transition-opacity">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+                                Generate explanations
+                            </button>
+</div>
+</div>
+</div>
+<!-- Add New Question Control -->
+<div class="relative group">
+<div class="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+<div class="relative bg-surface p-12 rounded-[2rem] border-2 border-dashed border-outline-variant flex flex-col items-center justify-center gap-6 hover:border-primary transition-colors cursor-pointer">
+<div class="w-16 h-16 bg-primary-container/20 text-primary rounded-full flex items-center justify-center shadow-inner">
+<span class="material-symbols-outlined text-[32px]">add</span>
+</div>
+<div class="text-center">
+<h4 class="text-xl font-bold font-headline mb-1 text-on-surface">Add New Question</h4>
+<p class="text-on-surface-variant text-sm">Choose a question type to continue building your assessment</p>
+</div>
+<div class="flex gap-4 mt-2">
+<button class="flex items-center gap-2 px-5 py-2.5 bg-secondary-container text-on-secondary-container font-semibold rounded-xl hover:translate-y-[-2px] transition-all">
+<span class="material-symbols-outlined text-[18px]">checklist</span>
+                                MCQ
+                            </button>
+<button class="flex items-center gap-2 px-5 py-2.5 bg-secondary-container text-on-secondary-container font-semibold rounded-xl hover:translate-y-[-2px] transition-all">
+<span class="material-symbols-outlined text-[18px]">done_all</span>
+                                True/False
+                            </button>
+<button class="flex items-center gap-2 px-5 py-2.5 bg-secondary-container text-on-secondary-container font-semibold rounded-xl hover:translate-y-[-2px] transition-all">
+<span class="material-symbols-outlined text-[18px]">edit_note</span>
+                                Short Answer
+                            </button>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Success Feedback Overlay (Hidden) -->
+<div class="fixed top-8 left-1/2 -translate-x-1/2 z-[100] bg-white dark:bg-slate-900 px-6 py-4 rounded-full shadow-2xl border border-blue-50 flex items-center gap-4 pointer-events-none opacity-0 transition-opacity">
+<div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[20px]">save</span>
+</div>
+<p class="text-sm font-bold text-on-surface">Draft saved at 10:45 AM</p>
+</div>
+<!-- Progress Halo (Design System Component) -->
+<div class="fixed top-0 left-0 w-full h-1 bg-surface-container-highest z-[60]">
+<div class="h-full bg-primary transition-all duration-500" style="width: 35%;"></div>
+</div>
+<!-- Responsive Bottom Bar (Mobile only) -->
+<div class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center px-6 py-3 pb-safe bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg shadow-[0_-4px_20px_rgba(0,0,0,0.03)] border-t border-slate-100 dark:border-slate-800 z-50">
+<div class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+<span class="material-symbols-outlined">home</span>
+<span class="text-[10px] font-medium uppercase tracking-wider mt-1">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200 rounded-xl px-4 py-1">
+<span class="material-symbols-outlined">assignment</span>
+<span class="text-[10px] font-medium uppercase tracking-wider mt-1">Exams</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+<span class="material-symbols-outlined">grade</span>
+<span class="text-[10px] font-medium uppercase tracking-wider mt-1">Grades</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[10px] font-medium uppercase tracking-wider mt-1">Profile</span>
+</div>
+</div>
+</body></html>

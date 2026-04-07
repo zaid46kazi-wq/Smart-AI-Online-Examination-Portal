@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Active Examination</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+        .styled-options input[type="radio"] { margin-right: 8px; transform: scale(1.2); }
+        .styled-options label { cursor: pointer; display: inline-block; padding: 4px 0; margin-left: 5px; }
+        .option-div { margin-bottom: 8px; }
+    </style>
+</head>
+<body class="bg-light user-select-none"> <!-- Prevent text copying -->
+    <nav class="navbar navbar-dark bg-danger sticky-top shadow-sm px-4">
+        <span class="navbar-brand fw-bold">Live Examination</span>
+        <span id="timerDisplay" class="text-white fw-bold fs-4">Time Remaining: 60s</span>
+    </nav>
+
+    <div class="container mt-4 pb-5" style="max-width: 800px;">
+        <div id="questionsContainer"></div>
+        
+        <div class="text-center mt-5">
+            <button id="btnSubmit" class="btn btn-primary btn-lg px-5 shadow fw-bold">Submit and Finish</button>
+        </div>
+    </div>
+
+    <script>
+        // Use history API trick
+        window.history.pushState(null, "", window.location.href);
+        window.onpopstate = function () {
+            window.history.pushState(null, "", window.location.href);
+        };
+
+        let timeLeft = 60;
+        let timerId;
+        let isSafeExit = false;
+
+        function startTimer() {
+            timerId = setInterval(function () {
+                timeLeft--;
+                const td = document.getElementById('timerDisplay');
+                td.innerText = `Time Remaining: ${timeLeft}s`;
+                
+                if (timeLeft <= 10) td.className = "text-warning fw-bold fs-4";
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerId);
+                    isSafeExit = true;
+                    submitExam();
+                }
+            }, 1000);
+        }
+
+        window.addEventListener('beforeunload', function (e) {
+            if (!isSafeExit && timeLeft > 0) {
+                e.preventDefault();
+                e.returnValue = 'You are in an active exam. Reloading will cancel your progress!';
+            }
+        });
+
+        async function loadExam() {
+            const res = await fetch('/api/exam-questions');
+            if(!res.ok) { window.location.href='/'; return; }
+            const questions = await res.json();
+            
+            const c = document.getElementById('questionsContainer');
+            questions.forEach((q, idx) => {
+                const div = document.createElement('div');
+                div.className = "card mb-3 shadow-sm border-0 question-card";
+                div.dataset.id = q.Id;
+                div.innerHTML = `
+                    <div class="card-header bg-white fs-5 fw-bold border-bottom-0 pt-4 px-4">
+                        ${idx + 1}. ${q.QuestionText}
+                    </div>
+                    <div class="card-body px-4 pb-4 styled-options">
+                        <div class="option-div"><label><input type="radio" name="q_${q.Id}" value="A"> ${q.OptionA}</label></div>
+                        <div class="option-div"><label><input type="radio" name="q_${q.Id}" value="B"> ${q.OptionB}</label></div>
+                        <div class="option-div"><label><input type="radio" name="q_${q.Id}" value="C"> ${q.OptionC}</label></div>
+                        <div class="option-div"><label><input type="radio" name="q_${q.Id}" value="D"> ${q.OptionD}</label></div>
+                    </div>
+                `;
+                c.appendChild(div);
+            });
+            startTimer();
+        }
+
+        async function submitExam() {
+            isSafeExit = true;
+            clearInterval(timerId);
+            document.getElementById('btnSubmit').disabled = true;
+
+            const answers = {};
+            document.querySelectorAll('.question-card').forEach(card => {
+                const qId = card.dataset.id;
+                const checked = card.querySelector(`input[name="q_${qId}"]:checked`);
+                if (checked) answers[qId] = checked.value;
+            });
+
+            const res = await fetch('/api/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ answers })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                // We use localStorage instead of Session like in Web Forms
+                localStorage.setItem('LastScore', data.score);
+                window.location.href = '/result.html';
+            } else {
+                alert('Exam submission failed due to server error. Please contact administrator.');
+            }
+        }
+
+        document.getElementById('btnSubmit').addEventListener('click', submitExam);
+        loadExam();
+    </script>
+</body>
+</html>

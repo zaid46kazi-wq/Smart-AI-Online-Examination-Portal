@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "GG7Z5ZEHY4o=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\zaid0\\OneDrive\\Desktop\\DNSPostProject1\\DNSPostProject1\\DNSPostProject1.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\zaid0\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.5\\microsoft.aspnetcore.openapi.10.0.5.nupkg.sha512",
+    "C:\\Users\\zaid0\\.nuget\\packages\\microsoft.openapi\\2.0.0\\microsoft.openapi.2.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}

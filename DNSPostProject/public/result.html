@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Exam Result - Online Examination System | AGMR College</title>
+<meta name="description" content="Your exam result and score."/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  theme: { extend: {
+    colors: {
+      "primary":"#2f56c8","primary-container":"#6284f8","on-primary":"#faf8ff",
+      "surface":"#f8f9fa","surface-container-lowest":"#ffffff","on-surface":"#2d3335",
+      "on-surface-variant":"#5a6062","outline-variant":"#adb3b5","error":"#a8364b",
+      "error-container":"#f97386","primary-dim":"#1f49bb",
+    },
+    fontFamily: { "headline":["Public Sans"], "body":["Inter"] },
+  }},
+}
+</script>
+<style>
+body { font-family: 'Inter', sans-serif; }
+.font-headline { font-family: 'Public Sans', sans-serif; }
+.material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+@keyframes scoreReveal { 0%{opacity:0;transform:scale(0.5)} 100%{opacity:1;transform:scale(1)} }
+@keyframes slideUp { 0%{opacity:0;transform:translateY(20px)} 100%{opacity:1;transform:translateY(0)} }
+.score-anim { animation: scoreReveal 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.slide-up { animation: slideUp 0.6s ease-out forwards; }
+</style>
+</head>
+<body class="bg-surface min-h-screen flex flex-col">
+
+<!-- Header -->
+<div class="w-full bg-primary text-on-primary py-3 px-6 text-center">
+  <h1 class="text-lg font-bold font-headline tracking-tight">AGMR College of Engineering</h1>
+  <p class="text-xs opacity-80">Online Examination System</p>
+</div>
+
+<!-- Main -->
+<main class="flex-1 flex items-center justify-center p-8">
+<div class="max-w-lg w-full">
+<!-- Result Card -->
+<div class="bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden border border-outline-variant/10">
+
+<!-- Score Hero -->
+<div class="p-12 text-center relative overflow-hidden" id="scoreHero">
+<div class="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+<div class="relative z-10">
+<div class="score-anim">
+<h1 class="text-8xl font-extrabold font-headline mb-2" id="scoreDisplay">--</h1>
+</div>
+<p class="text-lg font-medium opacity-80 slide-up" style="animation-delay:0.3s" id="statusText"></p>
+</div>
+</div>
+
+<!-- Details -->
+<div class="p-8 space-y-6">
+<div class="flex justify-between items-center py-3 border-b border-outline-variant/10">
+<span class="text-sm text-on-surface-variant font-medium">Score</span>
+<span class="text-sm font-bold" id="detailScore">-</span>
+</div>
+<div class="flex justify-between items-center py-3 border-b border-outline-variant/10">
+<span class="text-sm text-on-surface-variant font-medium">Total Marks</span>
+<span class="text-sm font-bold" id="detailTotal">-</span>
+</div>
+<div class="flex justify-between items-center py-3 border-b border-outline-variant/10">
+<span class="text-sm text-on-surface-variant font-medium">Percentage</span>
+<span class="text-sm font-bold" id="detailPct">-</span>
+</div>
+<div class="flex justify-between items-center py-3">
+<span class="text-sm text-on-surface-variant font-medium">Status</span>
+<span class="text-sm font-bold" id="detailStatus">-</span>
+</div>
+
+<!-- Actions -->
+<div class="flex flex-col gap-3 pt-4">
+<a id="pdfLink" href="#" class="hidden w-full bg-surface-container-lowest border-2 border-primary text-primary py-3 rounded-xl font-bold text-sm text-center hover:bg-primary hover:text-on-primary transition-all">
+<span class="material-symbols-outlined text-base align-middle mr-1">download</span> Download Result PDF
+</a>
+<a href="/student" class="w-full bg-primary text-on-primary py-3 rounded-xl font-bold text-sm text-center hover:bg-primary-dim transition-all shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-base align-middle mr-1">arrow_back</span> Back to Dashboard
+</a>
+</div>
+</div>
+</div>
+
+<!-- Message -->
+<p class="text-center text-xs text-on-surface-variant mt-6">Your score has been saved to the leaderboard and results database.</p>
+</div>
+</main>
+
+<!-- Footer -->
+<footer class="w-full bg-on-surface text-on-surface-variant/60 py-4 px-6 text-center">
+  <p class="text-xs font-medium">Online Examination System</p>
+  <p class="text-[10px] mt-0.5">Developer: Sayed Zaid Kazi</p>
+</footer>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const score = parseInt(params.get('score') || '0');
+const total = parseInt(params.get('total') || '0');
+const rid = params.get('rid');
+
+const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+const passed = pct >= 40;
+
+document.getElementById('scoreDisplay').textContent = score + ' / ' + total;
+document.getElementById('detailScore').textContent = score;
+document.getElementById('detailTotal').textContent = total;
+document.getElementById('detailPct').textContent = pct + '%';
+
+const hero = document.getElementById('scoreHero');
+const statusEl = document.getElementById('statusText');
+const detailStatus = document.getElementById('detailStatus');
+
+if (passed) {
+  hero.className = 'p-12 text-center relative overflow-hidden bg-gradient-to-br from-green-600 to-green-500 text-white';
+  statusEl.textContent = '✅ PASS — Congratulations!';
+  detailStatus.innerHTML = '<span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">PASS</span>';
+} else {
+  hero.className = 'p-12 text-center relative overflow-hidden bg-gradient-to-br from-red-600 to-red-500 text-white';
+  statusEl.textContent = '❌ FAIL — Better luck next time';
+  detailStatus.innerHTML = '<span class="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">FAIL</span>';
+}
+
+if (rid && rid !== 'null') {
+  const pdfLink = document.getElementById('pdfLink');
+  pdfLink.href = '/api/result-pdf/' + rid;
+  pdfLink.classList.remove('hidden');
+}
+</script>
+</body></html>

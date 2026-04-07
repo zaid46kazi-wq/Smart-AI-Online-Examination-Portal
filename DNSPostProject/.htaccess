@@ -1,0 +1,16 @@
+RewriteEngine On
+
+# Frontend routes mapping to static HTML files
+RewriteRule ^login$ public/index.html [L]
+RewriteRule ^student$ public/student.html [L]
+RewriteRule ^exam$ public/exam.html [L]
+RewriteRule ^result$ public/result.html [L]
+RewriteRule ^admin$ public/admin.html [L]
+RewriteRule ^create-exam$ public/create-exam.html [L]
+RewriteRule ^results$ public/results.html [L]
+
+# API routes mapping to api/index.php
+RewriteRule ^api/(.*)$ api/index.php?request=$1 [QSA,NC,L]
+
+# Root path
+RewriteRule ^/?$ public/index.html [L]
