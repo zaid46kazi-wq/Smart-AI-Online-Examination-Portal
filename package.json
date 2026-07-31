@@ -1,0 +1,11 @@
+{
+  "name": "online-exam-system-root",
+  "version": "3.0.0",
+  "private": true,
+  "scripts": {
+    "init-db": "npm --prefix DNSPostProject run init-db",
+    "start": "npm --prefix DNSPostProject start",
+    "dev:backend": "npm --prefix DNSPostProject run dev:backend",
+    "dev:frontend": "npm --prefix DNSPostProject run dev:frontend"
+  }
+}

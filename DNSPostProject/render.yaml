@@ -11,11 +11,19 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: SUPABASE_URL
+      - key: DB_HOST
         sync: false
-      - key: SUPABASE_KEY
+      - key: DB_PORT
+        value: "3306"
+      - key: DB_USER
         sync: false
-      - key: DATABASE_URL
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
         sync: false
       - key: EMAIL_USER
         sync: false

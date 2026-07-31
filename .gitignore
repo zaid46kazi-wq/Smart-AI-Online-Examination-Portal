@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables (NEVER commit secrets)
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.*
+
+# Build output
+dist/
+build/
+frontend/dist/
+**/dist/
+**/build/
+
+# Uploads & Temp Data
+uploads/
+**/uploads/
+mysql_data/
+**/mysql_data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+**/logs/
+npm-debug.log*
+
+# Coverage
+coverage/
+
+# Temporary and legacy files
+temp_restore/
+**/temp_restore/
+*.sln
+*.csproj
+bin/
+obj/
+

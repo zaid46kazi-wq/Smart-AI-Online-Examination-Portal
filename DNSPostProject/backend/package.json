@@ -1,0 +1,31 @@
+{
+  "name": "online-exam-system-backend",
+  "version": "3.0.0",
+  "description": "Backend API server for AGMR Online Examination System - Express + MySQL 8 + JWT",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "dev:backend": "node --watch server.js",
+    "test": "node -e \"console.log('Backend tests OK')\""
+  },
+  "dependencies": {
+    "@google/genai": "^1.46.0",
+    "bcrypt": "^5.1.1",
+    "compression": "^1.7.4",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^7.1.5",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.1.1",
+    "mysql2": "^3.23.2",
+    "nodemailer": "^8.0.3",
+    "pdfjs-dist": "^5.5.207",
+    "pdfkit": "^0.18.0",
+    "socket.io": "^4.8.3",
+    "xlsx": "^0.18.5",
+    "zod": "^3.24.1"
+  }
+}
