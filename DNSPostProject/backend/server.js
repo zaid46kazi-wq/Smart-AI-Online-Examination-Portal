@@ -28,21 +28,21 @@ const analyticsRoutes = require('./routes/analyticsRoutes');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
+// --- CORS & Security Headers ---
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+    : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'http://localhost:5000', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:3000', 'http://127.0.0.1:5000'];
+
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: '*',
+        origin: allowedOrigins,
         credentials: true
     },
     transports: ['websocket', 'polling']
 });
 
 app.set('io', io);
-
-// --- CORS & Security Headers ---
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
-    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-    : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'http://localhost:5000', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:3000', 'http://127.0.0.1:5000'];
 
 app.use(cors({
     origin: (origin, callback) => {

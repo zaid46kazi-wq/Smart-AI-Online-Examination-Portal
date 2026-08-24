@@ -120,7 +120,8 @@ const examController = {
 
     create: async (req, res, next) => {
         try {
-            const { exam_name, subject_id, subject_name, total_questions, total_marks, time_limit, exam_date, start_time, end_time, questions } = req.body;
+            const { exam_name, name, subject_id, subject_name, total_questions, total_marks, time_limit, exam_date, start_time, end_time, questions } = req.body;
+            const finalExamName = exam_name || name || 'Untitled Exam';
             let finalSubjectId = parseInt(subject_id) || 0;
 
             // Verify if specified subject_id actually exists in MySQL subjects table
@@ -148,7 +149,7 @@ const examController = {
             if (!finalSubjectId) return res.status(400).json({ error: 'Valid subject is required' });
 
             const examId = await examModel.create({
-                name: exam_name,
+                name: finalExamName,
                 subject_id: finalSubjectId,
                 total_questions: parseInt(total_questions) || (questions ? questions.length : 0),
                 total_marks: parseInt(total_marks) || (questions ? questions.reduce((s, q) => s + (q.marks || 1), 0) : 0),

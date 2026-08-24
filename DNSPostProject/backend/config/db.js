@@ -1,7 +1,15 @@
-/**
- * MySQL 8 Connection Pool & Query Helper with Graceful Fallback
- */
-require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
+
+const envPathParent = path.join(__dirname, '..', '..', '.env');
+const envPathBackend = path.join(__dirname, '..', '.env');
+if (fs.existsSync(envPathParent)) {
+    require('dotenv').config({ path: envPathParent });
+} else if (fs.existsSync(envPathBackend)) {
+    require('dotenv').config({ path: envPathBackend });
+} else {
+    require('dotenv').config();
+}
 const mysql = require('mysql2/promise');
 
 const poolConfig = {

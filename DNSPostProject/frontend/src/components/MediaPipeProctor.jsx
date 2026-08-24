@@ -1,7 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
-import * as tf from '@tensorflow/tfjs';
-import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import { apiFetch } from '../services/api';
 
 const DEFAULT_AI_SETTINGS = {
@@ -67,7 +65,7 @@ const mergeSafeSettings = (incoming) => {
     };
 };
 
-export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentityVerified, initViolations = 0 }) {
+export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentityVerified, onStepProgress, initViolations = 0 }) {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     
@@ -108,6 +106,11 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
     const audioAnimFrameRef = useRef(null);
     const cocoIntervalRef = useRef(null);
 
+    // Model refs — needed to avoid stale closures in requestAnimationFrame/setInterval loops
+    const landmarkerRef = useRef(null);
+    const cocoModelRef = useRef(null);
+    const settingsRef = useRef(DEFAULT_AI_SETTINGS);
+
     // Debug Mode Telemetry
     const [isDebugMode, setIsDebugMode] = useState(false);
     const debugDataRef = useRef({ fps: 0, faceCount: 0, faceConf: 0, yaw: 0, pitch: 0, roll: 0, eyeDir: 'CENTER', phoneConf: 0 });
@@ -128,29 +131,25 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
     const lastViolationTypeRef = useRef(null);
     const lastViolationTimeRef = useRef(0);
 
+    // Helper: Report step progress to parent
+    const reportStep = useCallback((stepNum, status) => {
+        if (onStepProgress) onStepProgress(stepNum, status);
+    }, [onStepProgress]);
+
     // Keep active & status refs synchronized
     useEffect(() => { activeRef.current = active; }, [active]);
     useEffect(() => { isViolatedRef.current = isViolated; }, [isViolated]);
+    useEffect(() => { settingsRef.current = settings; }, [settings]);
 
-    // Load AI Proctoring Settings from Server with Safe Default Fallback
+    // When deferred COCO-SSD loads, start phone detection interval
     useEffect(() => {
-        let isCancelled = false;
-        const fetchPromise = apiFetch('/api/proctor/settings');
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Settings fetch timeout')), 1500));
-
-        Promise.race([fetchPromise, timeoutPromise])
-            .then(data => {
-                if (!isCancelled && data && typeof data === 'object') {
-                    setSettings(mergeSafeSettings(data));
-                }
-            })
-            .catch(err => {
-                console.warn('[AI Engine] Settings load fallback to safe defaults:', err.message);
-                if (!isCancelled) setSettings(DEFAULT_AI_SETTINGS);
-            });
-
-        return () => { isCancelled = true; };
-    }, []);
+        if (!cocoModel || !activeRef.current) return;
+        cocoModelRef.current = cocoModel;
+        startPhoneDetectionInterval(cocoModel);
+        return () => {
+            if (cocoIntervalRef.current) clearInterval(cocoIntervalRef.current);
+        };
+    }, [cocoModel]);
 
     // Cleanup Media Streams, Contexts, and Animation Loops on Unmount
     useEffect(() => {
@@ -167,53 +166,102 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
         };
     }, []);
 
-    // Initialize MediaPipe & TensorFlow.js COCO-SSD Models
+    // OPTIMIZED: Parallel initialization — MediaPipe + Camera + Settings all at once
     useEffect(() => {
         let isMounted = true;
-        async function initAIModels() {
+
+        async function parallelInit() {
+            reportStep(1, 'active'); // Step 1: Secure Exam Environment
+
             try {
-                // Initialize MediaPipe Face Landmarker
-                const filesetResolver = await FilesetResolver.forVisionTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
-                );
-                const landmarkerInstance = await FaceLandmarker.createFromOptions(filesetResolver, {
-                    baseOptions: {
-                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-                        delegate: "GPU"
-                    },
-                    runningMode: "VIDEO",
-                    numFaces: 3,
-                    outputFaceBlendshapes: true
-                });
+                // Launch ALL initialization tasks in parallel
+                const [landmarkerInstance, stream, settingsData] = await Promise.all([
+                    // Task A: MediaPipe Face Landmarker (the heaviest task)
+                    (async () => {
+                        const filesetResolver = await FilesetResolver.forVisionTasks(
+                            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+                        );
+                        return FaceLandmarker.createFromOptions(filesetResolver, {
+                            baseOptions: {
+                                modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+                                delegate: "GPU"
+                            },
+                            runningMode: "VIDEO",
+                            numFaces: 3,
+                            outputFaceBlendshapes: true
+                        });
+                    })(),
 
-                // Initialize TensorFlow.js COCO-SSD Object Detector
-                await tf.ready();
-                const cocoInstance = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+                    // Task B: Camera + Mic access (start early so it's ready when models finish)
+                    (async () => {
+                        if (isMounted) reportStep(2, 'active');
+                        try {
+                            return await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 }, audio: true });
+                        } catch (_) {
+                            return await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
+                        }
+                    })(),
 
-                if (isMounted) {
-                    setLandmarker(landmarkerInstance);
-                    setCocoModel(cocoInstance);
-                    setLoading(false);
-                    setStatusText('READY FOR AUDIT');
+                    // Task C: Settings fetch (fast, runs concurrently)
+                    (async () => {
+                        const fetchPromise = apiFetch('/api/proctor/settings');
+                        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500));
+                        try {
+                            return await Promise.race([fetchPromise, timeoutPromise]);
+                        } catch (_) {
+                            return null;
+                        }
+                    })()
+                ]);
+
+                if (!isMounted) return;
+
+                // Apply settings
+                if (settingsData && typeof settingsData === 'object') {
+                    setSettings(mergeSafeSettings(settingsData));
                 }
+
+                reportStep(1, 'done');
+                reportStep(2, 'done');
+
+                // Attach camera to video element
+                streamRef.current = stream;
+                attachCameraListeners(stream);
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                    await videoRef.current.play().catch(() => {});
+                }
+                setupAudio(stream);
+
+                // Mark model loaded
+                reportStep(3, 'done'); // Step 3: AI Models Loaded
+                setLandmarker(landmarkerInstance);
+                landmarkerRef.current = landmarkerInstance;
+                setLoading(false);
+                setStatusText('READY FOR AUDIT');
+
+                // Request fullscreen
+                if (!document.fullscreenElement) {
+                    await document.documentElement.requestFullscreen().catch(() => {});
+                }
+
+                // Auto-start identity verification immediately
+                startIdentityVerificationFast(landmarkerInstance);
+
             } catch (err) {
-                console.error('[AI] Model Initialization Failed:', err);
+                console.error('[AI] Parallel Init Failed:', err);
                 if (isMounted) {
                     setStatusText('AI MODEL ERROR');
+                    setIdentityError('Camera permission denied or AI model failed to load. Please grant camera access and reload.');
+                    setStatusColor('#EF4444');
                     setLoading(false);
                 }
             }
         }
-        initAIModels();
+
+        parallelInit();
         return () => { isMounted = false; };
     }, []);
-
-    // Auto-Start Identity Verification once AI Models are Loaded
-    useEffect(() => {
-        if (!loading && landmarker && !active && !identityVerified && !isVerifyingIdentity) {
-            startIdentityVerification();
-        }
-    }, [loading, landmarker]);
 
     // Handle Camera Disconnections
     const attachCameraListeners = (stream) => {
@@ -228,14 +276,115 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
         }
     };
 
-    // Level 1: Pre-Exam Identity Verification Process (Auto-Triggered)
+    // OPTIMIZED: Fast identity verification — camera already running, landmarker passed directly
+    // Reduced stability time from 3s → 1.5s
+    const FACE_STABILITY_MS = 1500;
+
+    const startIdentityVerificationFast = (landmarkerInstance) => {
+        const lm = landmarkerInstance || landmarker;
+        if (!lm) return;
+
+        setIsVerifyingIdentity(true);
+        setStatusText('VERIFYING IDENTITY');
+        reportStep(4, 'active'); // Step 4: Verifying Face Stability
+
+        // Reusable canvas for lighting checks (avoid creating new ones per frame)
+        const sampleCanvas = document.createElement('canvas');
+        sampleCanvas.width = 160; sampleCanvas.height = 120;
+        const sampleCtx = sampleCanvas.getContext('2d');
+
+        let startTime = null;
+        const checkStability = () => {
+            if (!videoRef.current) return;
+            const video = videoRef.current;
+
+            // Lighting / Quality Check
+            try {
+                sampleCtx.drawImage(video, 0, 0, 160, 120);
+                const imgData = sampleCtx.getImageData(0, 0, 160, 120);
+                let brightnessSum = 0;
+                for (let i = 0; i < imgData.data.length; i += 16) { // Sample every 4th pixel for speed
+                    brightnessSum += (imgData.data[i] + imgData.data[i+1] + imgData.data[i+2]) / 3;
+                }
+                const avgBrightness = brightnessSum / (imgData.data.length / 16);
+
+                if (avgBrightness < 25) {
+                    startTime = null;
+                    setIdentityProgress(0);
+                    setIdentityError('Poor lighting detected. Please move to a brighter room.');
+                    requestAnimationFrame(checkStability);
+                    return;
+                }
+            } catch (_) {}
+
+            const results = lm.detectForVideo(video, performance.now());
+
+            if (!results.faceLandmarks || results.faceLandmarks.length === 0) {
+                startTime = null;
+                setIdentityProgress(0);
+                setIdentityError('No face detected. Position your face clearly in the camera frame.');
+                requestAnimationFrame(checkStability);
+            } else if (results.faceLandmarks.length > 1) {
+                startTime = null;
+                setIdentityProgress(0);
+                setIdentityError('Multiple faces detected. Ensure only you are visible.');
+                requestAnimationFrame(checkStability);
+            } else {
+                if (!startTime) startTime = performance.now();
+                const elapsed = performance.now() - startTime;
+                const pct = Math.min(100, Math.round((elapsed / FACE_STABILITY_MS) * 100));
+                setIdentityProgress(pct);
+                setIdentityError('');
+
+                if (elapsed >= FACE_STABILITY_MS) {
+                    // Verification Passed → Capture Reference Snapshot
+                    reportStep(4, 'done');
+                    reportStep(5, 'active'); // Step 5: Snapshot
+
+                    const snapshot = captureSnapshot(0.7);
+
+                    reportStep(5, 'done');
+                    reportStep(6, 'active'); // Step 6: Session Activation
+
+                    setIdentityVerified(true);
+                    setIsVerifyingIdentity(false);
+                    setActive(true);
+                    activeRef.current = true;
+                    setStatusText('AI SECURE TRACKING');
+
+                    // Fire-and-forget: persist identity snapshot to server
+                    apiFetch('/api/proctor/verify-identity', {
+                        method: 'POST',
+                        body: JSON.stringify({ exam_id: parseInt(examId), image_data: snapshot })
+                    }).catch(() => {});
+
+                    if (onIdentityVerified) onIdentityVerified(snapshot);
+
+                    reportStep(6, 'done');
+                    reportStep(7, 'active'); // Step 7: Timer & Monitoring
+
+                    // Launch continuous proctoring (face tracking loop)
+                    startContinuousProctoring(lm);
+
+                    // DEFERRED: Load COCO-SSD in background AFTER exam starts
+                    loadCocoSsdDeferred();
+
+                    reportStep(7, 'done');
+                    return;
+                }
+                requestAnimationFrame(checkStability);
+            }
+        };
+        requestAnimationFrame(checkStability);
+    };
+
+    // Legacy fallback for retry button
     const startIdentityVerification = async () => {
         if (!landmarker) return;
         setLoading(true);
         setIdentityError('');
 
         try {
-            // Request Fullscreen Mode
             if (!document.fullscreenElement) {
                 await document.documentElement.requestFullscreen().catch(() => {});
             }
@@ -255,81 +404,8 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
             }
 
             setupAudio(stream);
-            setIsVerifyingIdentity(true);
             setLoading(false);
-            setStatusText('VERIFYING IDENTITY');
-
-            // Execute 3-Second Face Stability & Quality Verification Loop
-            let startTime = null;
-            const checkStability = () => {
-                if (!videoRef.current || !landmarker) return;
-                const video = videoRef.current;
-                
-                // Lighting / Quality Check
-                try {
-                    const sampleCanvas = document.createElement('canvas');
-                    sampleCanvas.width = 160; sampleCanvas.height = 120;
-                    const sampleCtx = sampleCanvas.getContext('2d');
-                    sampleCtx.drawImage(video, 0, 0, 160, 120);
-                    const imgData = sampleCtx.getImageData(0, 0, 160, 120);
-                    let brightnessSum = 0;
-                    for (let i = 0; i < imgData.data.length; i += 4) {
-                        brightnessSum += (imgData.data[i] + imgData.data[i+1] + imgData.data[i+2]) / 3;
-                    }
-                    const avgBrightness = brightnessSum / (imgData.data.length / 4);
-
-                    if (avgBrightness < 25) {
-                        startTime = null;
-                        setIdentityProgress(0);
-                        setIdentityError('Poor lighting detected. Please move to a brighter room.');
-                        requestAnimationFrame(checkStability);
-                        return;
-                    }
-                } catch (_) {}
-
-                const results = landmarker.detectForVideo(video, performance.now());
-
-                if (!results.faceLandmarks || results.faceLandmarks.length === 0) {
-                    startTime = null;
-                    setIdentityProgress(0);
-                    setIdentityError('No face detected. Position your face clearly in the camera frame.');
-                    requestAnimationFrame(checkStability);
-                } else if (results.faceLandmarks.length > 1) {
-                    startTime = null;
-                    setIdentityProgress(0);
-                    setIdentityError('Multiple faces detected. Ensure only you are visible.');
-                    requestAnimationFrame(checkStability);
-                } else {
-                    if (!startTime) startTime = performance.now();
-                    const elapsed = performance.now() - startTime;
-                    const pct = Math.min(100, Math.round((elapsed / 3000) * 100));
-                    setIdentityProgress(pct);
-                    setIdentityError('');
-
-                    if (elapsed >= 3000) {
-                        // Level 1 Verification Passed -> Capture Reference Snapshot
-                        const snapshot = captureSnapshot(0.7);
-                        setIdentityVerified(true);
-                        setIsVerifyingIdentity(false);
-                        setActive(true);
-                        activeRef.current = true;
-                        setStatusText('AI SECURE TRACKING');
-
-                        apiFetch('/api/proctor/verify-identity', {
-                            method: 'POST',
-                            body: JSON.stringify({ exam_id: parseInt(examId), image_data: snapshot })
-                        }).catch(() => {});
-
-                        if (onIdentityVerified) onIdentityVerified(snapshot);
-
-                        // Launch Continuous Proctoring Loops
-                        startContinuousProctoring();
-                        return;
-                    }
-                    requestAnimationFrame(checkStability);
-                }
-            };
-            requestAnimationFrame(checkStability);
+            startIdentityVerificationFast(landmarker);
         } catch (err) {
             console.error('[AI] Camera Access Denied:', err);
             setIdentityError('Camera permission denied. Please grant camera access to begin the exam.');
@@ -337,6 +413,55 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
             setStatusColor('#EF4444');
             setLoading(false);
         }
+    };
+
+    // DEFERRED COCO-SSD: Load phone detection model in background after exam starts
+    const loadCocoSsdDeferred = async () => {
+        try {
+            const tf = await import('@tensorflow/tfjs');
+            await tf.ready();
+            const cocoSsd = await import('@tensorflow-models/coco-ssd');
+            const cocoInstance = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+            cocoModelRef.current = cocoInstance;
+            setCocoModel(cocoInstance); // triggers useEffect to start phone detection interval
+            console.log('[AI] COCO-SSD phone detection model loaded (deferred)');
+        } catch (err) {
+            console.warn('[AI] COCO-SSD deferred load failed (phone detection disabled):', err.message);
+        }
+    };
+
+    // Phone detection interval — extracted so it can be called both from startContinuousProctoring and from the cocoModel useEffect
+    const startPhoneDetectionInterval = (cocoInstance) => {
+        if (cocoIntervalRef.current) clearInterval(cocoIntervalRef.current);
+        if (!cocoInstance) return;
+
+        const s = settingsRef.current;
+        const intervalMs = parseInt(s.phone_detection_interval_ms) || 600;
+        const confThresh = parseFloat(s.phone_confidence_threshold) || 0.50;
+        const repeatLimit = parseInt(s.phone_repeat_limit) || 2;
+
+        cocoIntervalRef.current = setInterval(async () => {
+            if (!videoRef.current || !activeRef.current) return;
+            try {
+                const predictions = await cocoInstance.detect(videoRef.current);
+                const phoneRaw = predictions.find(p => p.class === 'cell phone');
+                if (debugDataRef.current) debugDataRef.current.phoneConf = phoneRaw ? Math.round(phoneRaw.score * 100) : 0;
+
+                const phone = predictions.find(p => p.class === 'cell phone' && p.score >= confThresh);
+                if (phone) {
+                    phoneFramesRef.current++;
+                    if (phoneFramesRef.current >= repeatLimit) {
+                        setIsViolated(true);
+                        setStatusText('MOBILE PHONE DETECTED');
+                        setStatusColor('#EF4444');
+                        triggerViolation('PHONE_DETECTED', `Mobile phone detected in camera view (${Math.round(phone.score * 100)}% confidence)`, settingsRef.current.risk_weights.PHONE_DETECTED || 30, phone.score);
+                        phoneFramesRef.current = 0;
+                    }
+                } else {
+                    phoneFramesRef.current = 0;
+                }
+            } catch (_) {}
+        }, intervalMs);
     };
 
     // Level 7, 8, 9: Security Event Listeners (Tab Switch, Fullscreen, Keyboard Shortcuts)
@@ -572,50 +697,30 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
     };
 
     // Main Loop: MediaPipe Face Landmarker & Vision Auditing Loop
-    const startContinuousProctoring = () => {
+    const startContinuousProctoring = (landmarkerInstance) => {
+        // Use the passed instance directly to avoid stale closure over state
+        const lm = landmarkerInstance || landmarkerRef.current;
+        if (!lm) {
+            console.error('[AI] startContinuousProctoring called without landmarker!');
+            return;
+        }
         let lastVideoTime = -1;
 
         if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-        if (cocoIntervalRef.current) clearInterval(cocoIntervalRef.current);
 
-        // Level 6: Asynchronous Mobile Phone Detection Loop (TF.js COCO-SSD)
-        if (cocoModel) {
-            const intervalMs = parseInt(settings.phone_detection_interval_ms) || 600;
-            const confThresh = parseFloat(settings.phone_confidence_threshold) || 0.50;
-            const repeatLimit = parseInt(settings.phone_repeat_limit) || 2;
-
-            cocoIntervalRef.current = setInterval(async () => {
-                if (!videoRef.current || !activeRef.current) return;
-                try {
-                    const predictions = await cocoModel.detect(videoRef.current);
-                    const phoneRaw = predictions.find(p => p.class === 'cell phone');
-                    if (debugDataRef.current) debugDataRef.current.phoneConf = phoneRaw ? Math.round(phoneRaw.score * 100) : 0;
-                    
-                    const phone = predictions.find(p => p.class === 'cell phone' && p.score >= confThresh);
-                    if (phone) {
-                        phoneFramesRef.current++;
-                        if (phoneFramesRef.current >= repeatLimit) {
-                            setIsViolated(true);
-                            setStatusText('MOBILE PHONE DETECTED');
-                            setStatusColor('#EF4444');
-                            triggerViolation('PHONE_DETECTED', `Mobile phone detected in camera view (${Math.round(phone.score * 100)}% confidence)`, settings.risk_weights.PHONE_DETECTED || 30, phone.score);
-                            phoneFramesRef.current = 0;
-                        }
-                    } else {
-                        phoneFramesRef.current = 0;
-                    }
-                } catch (_) {}
-            }, intervalMs);
+        // Start phone detection if COCO-SSD is already loaded (usually not yet due to deferred loading)
+        if (cocoModelRef.current) {
+            startPhoneDetectionInterval(cocoModelRef.current);
         }
 
-        // Render Frame Loop
+        // Render Frame Loop — uses `lm` (direct reference) instead of `landmarker` (stale state)
         const render = () => {
             if (!videoRef.current || !canvasRef.current || !activeRef.current) return;
             const video = videoRef.current;
             const canvas = canvasRef.current;
             const ctx = canvas.getContext('2d');
 
-            if (video.currentTime !== lastVideoTime && landmarker) {
+            if (video.currentTime !== lastVideoTime) {
                 lastVideoTime = video.currentTime;
                 
                 // Telemetry: Calculate FPS
@@ -627,13 +732,16 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
                     lastFpsTimeRef.current = now;
                 }
 
-                const results = landmarker.detectForVideo(video, performance.now());
+                const results = lm.detectForVideo(video, performance.now());
                 if (debugDataRef.current) debugDataRef.current.faceCount = results.faceLandmarks ? results.faceLandmarks.length : 0;
 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+                // Read settings from ref to avoid stale closure
+                const s = settingsRef.current;
+
                 // Dynamic Timeout Settings
-                const faceTimeoutSec = parseFloat(settings.face_timeout_seconds) || 5;
+                const faceTimeoutSec = parseFloat(s.face_timeout_seconds) || 5;
 
                 // Level 2: Face Missing / Camera Blocked Detection
                 if (!results.faceLandmarks || results.faceLandmarks.length === 0) {
@@ -652,20 +760,20 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
                         setIsViolated(true);
                         setStatusText('FACE ABSENT VIOLATION');
                         setStatusColor('#EF4444');
-                        triggerViolation('FACE_MISSING', `Candidate face absent from camera frame for >${faceTimeoutSec}s`, settings.risk_weights.FACE_MISSING || 20);
+                        triggerViolation('FACE_MISSING', `Candidate face absent from camera frame for >${faceTimeoutSec}s`, s.risk_weights.FACE_MISSING || 20);
                         absentFramesRef.current = 0;
                     }
                 } 
                 // Level 5: Multiple Faces Detection
-                else if (results.faceLandmarks.length > (parseInt(settings.max_allowed_faces) || 1)) {
+                else if (results.faceLandmarks.length > (parseInt(s.max_allowed_faces) || 1)) {
                     absentFramesRef.current = 0;
                     multiFaceFramesRef.current++;
-                    const multiFaceHoldFrames = Math.round((parseFloat(settings.multiple_faces_duration_sec) || 1.0) * 10);
+                    const multiFaceHoldFrames = Math.round((parseFloat(s.multiple_faces_duration_sec) || 1.0) * 10);
                     if (multiFaceFramesRef.current >= multiFaceHoldFrames) {
                         setIsViolated(true);
                         setStatusText('MULTIPLE FACES DETECTED');
                         setStatusColor('#EF4444');
-                        triggerViolation('MULTIPLE_FACES', `${results.faceLandmarks.length} faces detected in examination area`, settings.risk_weights.MULTIPLE_FACES || 40);
+                        triggerViolation('MULTIPLE_FACES', `${results.faceLandmarks.length} faces detected in examination area`, s.risk_weights.MULTIPLE_FACES || 40);
                         multiFaceFramesRef.current = 0;
                     }
                 } 
@@ -682,11 +790,11 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
                         debugDataRef.current.pitch = pitch;
                         debugDataRef.current.roll = roll;
                     }
-                    const yawLeftMax = parseFloat(settings.head_yaw_left_deg || settings.head_yaw_threshold_deg) || 22;
-                    const yawRightMax = parseFloat(settings.head_yaw_right_deg || settings.head_yaw_threshold_deg) || 22;
-                    const pitchUpMax = parseFloat(settings.head_pitch_up_deg || settings.head_pitch_threshold_deg) || 18;
-                    const pitchDownMax = parseFloat(settings.head_pitch_down_deg || settings.head_pitch_threshold_deg) || 18;
-                    const headHoldFrames = Math.round((parseFloat(settings.head_pose_hold_time_sec) || 1.5) * 10);
+                    const yawLeftMax = parseFloat(s.head_yaw_left_deg || s.head_yaw_threshold_deg) || 22;
+                    const yawRightMax = parseFloat(s.head_yaw_right_deg || s.head_yaw_threshold_deg) || 22;
+                    const pitchUpMax = parseFloat(s.head_pitch_up_deg || s.head_pitch_threshold_deg) || 18;
+                    const pitchDownMax = parseFloat(s.head_pitch_down_deg || s.head_pitch_threshold_deg) || 18;
+                    const headHoldFrames = Math.round((parseFloat(s.head_pose_hold_time_sec) || 1.5) * 10);
 
                     const isHeadTurned = yaw > yawRightMax || yaw < -yawLeftMax || pitch < -pitchUpMax || pitch > pitchDownMax;
 
@@ -697,7 +805,7 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
                             const dir = yaw > yawRightMax ? 'RIGHT' : yaw < -yawLeftMax ? 'LEFT' : pitch > pitchDownMax ? 'DOWN' : 'UP';
                             setStatusText(`HEAD TURNED (${dir})`);
                             setStatusColor('#EF4444');
-                            triggerViolation('HEAD_POSE', `Head turned ${dir} outside threshold (${yaw}°, ${pitch}°)`, settings.risk_weights.HEAD_YAW || 10);
+                            triggerViolation('HEAD_POSE', `Head turned ${dir} outside threshold (${yaw}°, ${pitch}°)`, s.risk_weights.HEAD_YAW || 10);
                             headAwayFramesRef.current = 0;
                         }
                     } else {
@@ -710,8 +818,8 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
                         debugDataRef.current.eyeDir = gazeDirection;
                         debugDataRef.current.faceConf = Math.round(confidence * 100);
                     }
-                    const gazeHoldFrames = Math.round((parseFloat(settings.eye_gaze_max_duration_sec) || 3.0) * 10);
-                    const blinkHoldFrames = Math.round((parseFloat(settings.eye_blink_duration_thresh_sec) || 3.0) * 10);
+                    const gazeHoldFrames = Math.round((parseFloat(s.eye_gaze_max_duration_sec) || 3.0) * 10);
+                    const blinkHoldFrames = Math.round((parseFloat(s.eye_blink_duration_thresh_sec) || 3.0) * 10);
 
                     if (isEyesClosed) {
                         eyesClosedFramesRef.current++;
@@ -719,7 +827,7 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
                             setIsViolated(true);
                             setStatusText('EYES CLOSED LONG DURATION');
                             setStatusColor('#EF4444');
-                            triggerViolation('EYES_CLOSED_LONG', 'Eyes closed continuously beyond threshold duration', settings.risk_weights.EYES_CLOSED_LONG || 20, confidence);
+                            triggerViolation('EYES_CLOSED_LONG', 'Eyes closed continuously beyond threshold duration', s.risk_weights.EYES_CLOSED_LONG || 20, confidence);
                             eyesClosedFramesRef.current = 0;
                         }
                     } else {
@@ -734,11 +842,11 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
                             sideGlanceCountRef.current++;
                             lastGazeDirRef.current = gazeDirection;
 
-                            if (sideGlanceCountRef.current >= (parseInt(settings.eye_gaze_side_glance_limit) || 3)) {
+                            if (sideGlanceCountRef.current >= (parseInt(s.eye_gaze_side_glance_limit) || 3)) {
                                 setIsViolated(true);
                                 setStatusText('RAPID SIDE GLANCES DETECTED');
                                 setStatusColor('#F97316');
-                                triggerViolation('RAPID_SIDE_GLANCES', `Repeated rapid side glances (${sideGlanceCountRef.current} flips)`, settings.risk_weights.RAPID_SIDE_GLANCES || 15, confidence);
+                                triggerViolation('RAPID_SIDE_GLANCES', `Repeated rapid side glances (${sideGlanceCountRef.current} flips)`, s.risk_weights.RAPID_SIDE_GLANCES || 15, confidence);
                                 sideGlanceCountRef.current = 0;
                             }
                         }
@@ -747,7 +855,7 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
                             setIsViolated(true);
                             setStatusText(`GAZE AWAY (${gazeDirection})`);
                             setStatusColor('#F97316');
-                            triggerViolation('LOOKING_AWAY', `Sustained eye gaze away (${gazeDirection})`, settings.risk_weights.LOOKING_AWAY || 10, confidence);
+                            triggerViolation('LOOKING_AWAY', `Sustained eye gaze away (${gazeDirection})`, s.risk_weights.LOOKING_AWAY || 10, confidence);
                             gazeAwayFramesRef.current = 0;
                         }
                     } else {
@@ -755,7 +863,7 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
                         lastGazeDirRef.current = 'LOOKING_CENTER';
                     }
 
-                    if (!isHeadTurned && !isEyesClosed && Math.abs(horizOffset) <= settings.eye_gaze_threshold) {
+                    if (!isHeadTurned && !isEyesClosed && Math.abs(horizOffset) <= s.eye_gaze_threshold) {
                         setIsViolated(false);
                         setStatusText('AI SECURE TRACKING');
                         setStatusColor('#10B981');

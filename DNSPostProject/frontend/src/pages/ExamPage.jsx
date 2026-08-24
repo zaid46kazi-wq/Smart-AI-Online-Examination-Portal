@@ -21,6 +21,25 @@ export function ExamPage() {
     const [fsWarning, setFsWarning] = useState(false);
     const [isIdentityVerified, setIsIdentityVerified] = useState(false);
 
+    // Dynamic gatekeeper step tracking (driven by MediaPipeProctor callbacks)
+    const GATEKEEPER_STEPS = [
+        { label: 'Secure Exam Environment Prepared', icon: 'verified_user' },
+        { label: 'Camera & Microphone Permissions Active', icon: 'videocam' },
+        { label: 'MediaPipe AI Detection Models Loaded', icon: 'model_training' },
+        { label: 'Verifying Face Stability & Environment Lighting', icon: 'face_retouching_natural' },
+        { label: 'Baseline Reference Snapshot Storage', icon: 'photo_camera' },
+        { label: 'Question Paper Decryption & Exam Session Activation', icon: 'vpn_key' },
+        { label: 'Exam Timer & Continuous AI Monitoring Activation', icon: 'timer' },
+    ];
+    // stepStates: 'pending' | 'active' | 'done'  — keyed by 1-7
+    const [stepStates, setStepStates] = useState({
+        1: 'pending', 2: 'pending', 3: 'pending', 4: 'pending', 5: 'pending', 6: 'pending', 7: 'pending'
+    });
+
+    const handleStepProgress = (stepNum, status) => {
+        setStepStates(prev => ({ ...prev, [stepNum]: status }));
+    };
+
     const tabSwitchesRef = useRef(0);
     const fsWarningsRef = useRef(0);
 
@@ -226,6 +245,7 @@ export function ExamPage() {
                 onViolation={(type, msg, count) => showToast(`⚠️ PROCTOR WARNING (${count}/3): ${msg}`, 'error')}
                 onAutoSubmit={(reason) => submitExam(reason)}
                 onIdentityVerified={() => loadQuestionsAndActivateSession()}
+                onStepProgress={handleStepProgress}
             />
 
             {/* Main Exam Body */}
@@ -265,36 +285,35 @@ export function ExamPage() {
                                     </div>
                                 </div>
 
-                                {/* Loading Steps Checklist */}
+                                {/* Dynamic Loading Steps Checklist — driven by real AI progress */}
                                 <div className="space-y-2.5 text-left">
-                                    <div className="flex items-center gap-3 p-3 rounded-xl bg-success/10 text-success text-xs font-bold">
-                                        <span className="material-symbols-outlined text-base">check_circle</span>
-                                        <span>[1/7] Secure Exam Environment Prepared</span>
-                                    </div>
-                                    <div className="flex items-center gap-3 p-3 rounded-xl bg-success/10 text-success text-xs font-bold">
-                                        <span className="material-symbols-outlined text-base">check_circle</span>
-                                        <span>[2/7] Camera & Microphone Permissions Active</span>
-                                    </div>
-                                    <div className="flex items-center gap-3 p-3 rounded-xl bg-success/10 text-success text-xs font-bold">
-                                        <span className="material-symbols-outlined text-base">check_circle</span>
-                                        <span>[3/7] MediaPipe & TF.js AI Detection Models Loaded</span>
-                                    </div>
-                                    <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/10 text-primary text-xs font-bold border border-primary/20">
-                                        <span className="material-symbols-outlined text-base animate-spin">sync</span>
-                                        <span>[4/7] Verifying Face Stability & Environment Lighting...</span>
-                                    </div>
-                                    <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-container-high text-outline text-xs font-bold opacity-60">
-                                        <span className="material-symbols-outlined text-base">photo_camera</span>
-                                        <span>[5/7] Baseline Reference Snapshot Storage</span>
-                                    </div>
-                                    <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-container-high text-outline text-xs font-bold opacity-60">
-                                        <span className="material-symbols-outlined text-base">vpn_key</span>
-                                        <span>[6/7] Question Paper Decryption & Exam Session Activation</span>
-                                    </div>
-                                    <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-container-high text-outline text-xs font-bold opacity-60">
-                                        <span className="material-symbols-outlined text-base">timer</span>
-                                        <span>[7/7] Exam Timer & Continuous AI Monitoring Activation</span>
-                                    </div>
+                                    {GATEKEEPER_STEPS.map((step, idx) => {
+                                        const stepNum = idx + 1;
+                                        const state = stepStates[stepNum];
+                                        let bgClass, textClass, iconName, extraClass = '';
+
+                                        if (state === 'done') {
+                                            bgClass = 'bg-success/10';
+                                            textClass = 'text-success';
+                                            iconName = 'check_circle';
+                                        } else if (state === 'active') {
+                                            bgClass = 'bg-primary/10 border border-primary/20';
+                                            textClass = 'text-primary';
+                                            iconName = 'sync';
+                                            extraClass = 'animate-spin';
+                                        } else {
+                                            bgClass = 'bg-surface-container-high opacity-60';
+                                            textClass = 'text-outline';
+                                            iconName = step.icon;
+                                        }
+
+                                        return (
+                                            <div key={stepNum} className={`flex items-center gap-3 p-3 rounded-xl ${bgClass} ${textClass} text-xs font-bold`} style={{ transition: 'all 0.3s ease' }}>
+                                                <span className={`material-symbols-outlined text-base ${extraClass}`}>{iconName}</span>
+                                                <span>[{stepNum}/7] {step.label}{state === 'active' ? '...' : ''}</span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
 
                                 <div className="p-4 bg-secondary-container/20 rounded-2xl border border-primary/20 text-xs font-bold text-primary flex items-center justify-center gap-2">

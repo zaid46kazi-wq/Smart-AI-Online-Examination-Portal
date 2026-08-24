@@ -74,14 +74,27 @@ const examModel = {
         }
     },
 
-    create: async ({ name, subject_id, total_questions = 0, total_marks = 0, time_limit = 30, exam_date, start_time = '00:00', end_time = '23:59', exam_status = 'published' }) => {
+    create: async ({ name, subject_id, total_questions = 0, total_marks = 0, time_limit = 30, exam_date, start_time, end_time, exam_status }) => {
         try {
             const sql = `
                 INSERT INTO exams (name, subject_id, total_questions, total_marks, time_limit, exam_date, start_time, end_time, exam_status) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
             const dateVal = exam_date || new Date().toISOString().split('T')[0];
-            const res = await query(sql, [name, subject_id, total_questions, total_marks, time_limit, dateVal, start_time, end_time, exam_status]);
+            const sTime = start_time || '00:00';
+            const eTime = end_time || '23:59';
+            const statusVal = exam_status || 'published';
+            const res = await query(sql, [
+                name || 'Untitled Exam',
+                parseInt(subject_id) || 1,
+                parseInt(total_questions) || 0,
+                parseInt(total_marks) || 0,
+                parseInt(time_limit) || 30,
+                dateVal,
+                sTime,
+                eTime,
+                statusVal
+            ]);
             return res.insertId;
         } catch (err) {
             console.error('[examModel.create Error]:', err.message);

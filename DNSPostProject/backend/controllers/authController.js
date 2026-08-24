@@ -9,7 +9,9 @@ const authController = {
         try {
             const { username, password, role } = req.body;
             let dbRole = 'Student';
-            if (role.toLowerCase() === 'instructor' || role.toLowerCase() === 'admin') dbRole = 'Admin';
+            if (role && typeof role === 'string' && (role.toLowerCase() === 'instructor' || role.toLowerCase() === 'admin')) {
+                dbRole = 'Admin';
+            }
 
             const user = await userModel.findByUsernameOrEmail(username, dbRole);
             if (!user) {
