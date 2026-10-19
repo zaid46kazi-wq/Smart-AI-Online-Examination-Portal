@@ -302,3 +302,32 @@ test('AI Evaluation: Security — Unauthenticated and non-admin requests are blo
     const studentRes = await apiRequest('/api/evaluation/sessions', { headers: authHeaders });
     assert.equal(studentRes.response.status, 403, 'Student must receive 403 Forbidden');
 });
+
+test('AI Evaluation: File Upload validation rejects disallowed formats and empty uploads', async () => {
+    const admin = await loginUser('admin', 'admin123', 'Admin');
+    const authHeaders = { Authorization: `Bearer ${admin.token}` };
+
+    // 1. Missing file in multipart form
+    const emptyFormData = new FormData();
+    const resNoFile = await fetch(`${BASE_URL}/api/evaluation/upload/1/question_paper`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: emptyFormData
+    });
+    assert.equal(resNoFile.status, 400, 'Missing file payload should return 400 Bad Request');
+    const bodyNoFile = await resNoFile.json();
+    assert.ok(bodyNoFile.error.includes('No file uploaded'));
+
+    // 2. Disallowed file extension (.txt or .exe)
+    const badFormData = new FormData();
+    const badBlob = new Blob(['malicious executable'], { type: 'application/x-msdownload' });
+    badFormData.append('file', badBlob, 'malicious.exe');
+
+    const resBadFile = await fetch(`${BASE_URL}/api/evaluation/upload/1/question_paper`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: badFormData
+    });
+    // Multer rejects with error, Express returns 500 or error json
+    assert.ok(resBadFile.status >= 400, `Disallowed file type must fail with error code >= 400: got ${resBadFile.status}`);
+});
