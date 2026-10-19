@@ -41,7 +41,7 @@ pool.getConnection()
 
 async function query(sql, params = []) {
     try {
-        const [results] = await pool.execute(sql, params);
+        const [results] = await pool.query(sql, params);
         isDbConnected = true;
         return results;
     } catch (err) {

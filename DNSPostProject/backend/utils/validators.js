@@ -38,15 +38,15 @@ const createExamSchema = z.object({
         question: z.string().min(1),
         option1: z.string().min(1),
         option2: z.string().min(1),
-        option3: z.string().min(1),
-        option4: z.string().min(1),
+        option3: z.string().optional().default(''),
+        option4: z.string().optional().default(''),
         correct_answer: z.string().optional().default('A'),
         marks: z.number().optional().default(1)
     })).optional().default([])
 });
 
 const submitExamSchema = z.object({
-    exam_id: z.number({ required_error: 'exam_id is required' }),
+    exam_id: z.number().or(z.string().regex(/^\d+$/).transform(Number)),
     answers: z.record(z.string(), z.string()).optional().default({}),
     autoSubmit: z.boolean().optional().default(false),
     reason: z.string().optional().default('NORMAL'),

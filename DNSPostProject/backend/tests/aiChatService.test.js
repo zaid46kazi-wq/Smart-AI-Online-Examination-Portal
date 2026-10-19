@@ -54,8 +54,8 @@ test('the real Gemini service returns a concise academic response', async () => 
         message: 'Explain binary search in simple terms',
         history: [],
         apiKey,
-        model: process.env.AI_MODEL || 'gemini-3.5-flash-lite',
-        timeoutMs: 15000,
+        model: process.env.AI_MODEL || 'gemini-flash-lite-latest',
+        timeoutMs: parseInt(process.env.AI_CHAT_TIMEOUT_MS || '30000', 10),
     });
 
     assert.ok(reply.length >= 20);

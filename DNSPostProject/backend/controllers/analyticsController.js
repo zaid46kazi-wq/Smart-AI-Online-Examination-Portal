@@ -67,7 +67,7 @@ Instructions:
 4. Do NOT disclose answers to active live exams; instead explain the underlying conceptual principle.`;
 
                     const responsePromise = ai.models.generateContent({
-                        model: 'gemini-3.5-flash-lite',
+                        model: process.env.AI_MODEL || 'gemini-flash-lite-latest',
                         contents: prompt
                     });
                     const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 7000));

@@ -67,11 +67,12 @@ Your response MUST be ONLY the raw JSON array, without any markdown formatting l
 Text:
 ${text.substring(0, 30000)}`;
 
+    const configuredModel = process.env.AI_MODEL || 'gemini-flash-lite-latest';
     const modelsToTry = [
-        'gemini-3.5-flash-lite',
-        'gemini-3.1-flash-lite',
+        configuredModel,
         'gemini-flash-lite-latest',
-        'gemini-3.8-flash'
+        'gemini-2.0-flash',
+        'gemini-1.5-flash'
     ];
     const MAX_RETRIES = 2;
     let lastError = null;

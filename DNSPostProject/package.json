@@ -11,8 +11,9 @@
     "build": "npm --prefix frontend run build",
     "build:frontend": "npm --prefix frontend run build",
     "init-db": "node database/init_db.js",
-    "test": "node --test backend/tests/integration.test.js",
-    "test:backend": "node --test backend/tests/integration.test.js",
+    "test": "node --test backend/tests/integration.test.js backend/tests/qaRegression.test.js",
+    "test:backend": "node --test backend/tests/integration.test.js backend/tests/qaRegression.test.js",
+    "test:all": "node --test backend/tests/integration.test.js backend/tests/qaRegression.test.js backend/tests/chatFlow.integration.test.js backend/tests/aiChatService.test.js",
     "check": "npm run build && npm run test"
   },
   "engines": {

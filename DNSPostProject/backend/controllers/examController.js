@@ -68,11 +68,14 @@ const examController = {
                 });
             }
 
+            const aiSettings = await proctorModel.getSettings().catch(() => ({}));
+            const maxAllowedWarnings = parseInt(aiSettings?.max_warnings) || 3;
+
             const pStat = await proctorModel.getStatus(req.userId, examId);
-            if (pStat && (pStat.violations_count >= 3 || pStat.status === 'submitted')) {
+            if (pStat && (pStat.violations_count >= maxAllowedWarnings || pStat.status === 'submitted')) {
                 return res.status(403).json({
                     error: pStat.status === 'submitted' ? 'You have already submitted this exam.' : 'Maximum warnings exceeded.',
-                    violations_reached: pStat.violations_count >= 3,
+                    violations_reached: pStat.violations_count >= maxAllowedWarnings,
                     already_submitted: pStat.status === 'submitted'
                 });
             }

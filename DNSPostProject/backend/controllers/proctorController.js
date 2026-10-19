@@ -258,6 +258,13 @@ const proctorController = {
             const resultId = parseInt(req.params.result_id);
             const report = await proctorModel.getProctoringReportData(resultId);
             if (!report) return res.status(404).json({ error: 'Report not found' });
+
+            const isOwner = report.result?.student_id === req.userId;
+            const isAdmin = req.userRole?.toLowerCase() === 'admin' || req.userRole?.toLowerCase() === 'instructor';
+            if (!isOwner && !isAdmin) {
+                return res.status(403).json({ error: 'Access denied. You can only view your own proctoring report.' });
+            }
+
             return res.json(report);
         } catch (err) { next(err); }
     },
@@ -267,6 +274,12 @@ const proctorController = {
             const resultId = parseInt(req.params.result_id);
             const reportData = await proctorModel.getProctoringReportData(resultId);
             if (!reportData) return res.status(404).json({ error: 'Report data not found' });
+
+            const isOwner = reportData.result?.student_id === req.userId;
+            const isAdmin = req.userRole?.toLowerCase() === 'admin' || req.userRole?.toLowerCase() === 'instructor';
+            if (!isOwner && !isAdmin) {
+                return res.status(403).json({ error: 'Access denied. You can only download your own proctoring report.' });
+            }
 
             const { result, incidents, proctorStatus } = reportData;
             const riskScore = proctorStatus.live_risk_score || 0;

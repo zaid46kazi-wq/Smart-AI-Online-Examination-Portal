@@ -252,7 +252,10 @@ export const MediaPipeProctor = forwardRef(function MediaPipeProctor({
                     }
                 }
 
-                if (!isMounted) return;
+                if (!isMounted) {
+                    stream?.getTracks().forEach(track => track.stop());
+                    return;
+                }
                 reportStep(1, 'done');
                 reportStep(2, 'done');
 

@@ -8,9 +8,13 @@ const bcrypt = require('bcrypt');
 const envPath = path.join(__dirname, '..', '..', '.env');
 if (fs.existsSync(envPath)) dotenv.config({ path: envPath });
 
-const { query } = require('../config/db');
+const { query, pool } = require('../config/db');
 const BASE_URL = process.env.TEST_BASE_URL || 'http://127.0.0.1:5000';
 const tempUsername = `chat_verify_${Date.now()}`;
+
+test.after(async () => {
+    await pool.end();
+});
 
 async function apiRequest(url, options = {}) {
     const response = await fetch(`${BASE_URL}${url}`, options);

@@ -28,9 +28,15 @@ async function authenticate(req, res, next, requiredRole = null) {
             return res.redirect('/login');
         }
 
-        if (requiredRole && user.role !== requiredRole) {
-            if (req.originalUrl.startsWith('/api')) return res.status(403).json({ error: 'Forbidden: Insufficient privileges' });
-            return res.redirect('/login');
+        if (requiredRole) {
+            const userRoleLower = (user.role || '').toLowerCase();
+            const reqRoleLower = requiredRole.toLowerCase();
+            const isMatch = (reqRoleLower === 'admin' && (userRoleLower === 'admin' || userRoleLower === 'instructor')) ||
+                            (reqRoleLower === userRoleLower);
+            if (!isMatch) {
+                if (req.originalUrl.startsWith('/api')) return res.status(403).json({ error: 'Forbidden: Insufficient privileges' });
+                return res.redirect('/login');
+            }
         }
 
         req.userId = user.id;

@@ -148,7 +148,17 @@ const resultController = {
                 result_id,
                 passed: percentage >= 40
             });
-        } catch (err) { next(err); }
+        } catch (err) {
+            if (err.code === 'ER_DUP_ENTRY') {
+                const prev = await resultModel.findByStudentAndExam(req.userId, examId).catch(() => null);
+                return res.status(403).json({
+                    error: 'This exam has already been submitted.',
+                    prevScore: prev?.score ?? null,
+                    already_submitted: true
+                });
+            }
+            next(err);
+        }
     },
 
     downloadPDF: async (req, res, next) => {
@@ -218,7 +228,7 @@ Provide a structured JSON object with these EXACT keys:
 Return ONLY valid raw JSON without markdown code fences.`;
 
                     const responsePromise = ai.models.generateContent({
-                        model: 'gemini-3.5-flash-lite',
+                        model: process.env.AI_MODEL || 'gemini-flash-lite-latest',
                         contents: prompt
                     });
                     const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 7000));
