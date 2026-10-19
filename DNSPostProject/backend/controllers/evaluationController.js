@@ -174,7 +174,7 @@ exports.uploadDocument = async (req, res) => {
 exports.confirmQuestions = async (req, res) => {
     try {
         const { session_id } = req.params;
-        const { corrections } = req.body; // Optional array of {id, question_text, max_marks, ...}
+        const corrections = req.body.corrections || req.body.questions; // Optional array of {id, question_text, max_marks, ...}
 
         if (corrections && Array.isArray(corrections)) {
             for (const c of corrections) {
@@ -199,7 +199,7 @@ exports.confirmQuestions = async (req, res) => {
 exports.confirmScheme = async (req, res) => {
     try {
         const { session_id } = req.params;
-        const { corrections } = req.body;
+        const corrections = req.body.corrections || req.body.scheme;
 
         if (corrections && Array.isArray(corrections)) {
             for (const c of corrections) {
@@ -302,9 +302,9 @@ exports.uploadBooklet = async (req, res) => {
 exports.confirmBookletOCR = async (req, res) => {
     try {
         const { booklet_id } = req.params;
-        const { corrections } = req.body; // Optional array of corrected OCR entries
+        const corrections = req.body.corrections || req.body.ocr_output; // Optional array or object of corrected OCR entries
 
-        if (corrections && Array.isArray(corrections)) {
+        if (corrections) {
             await evaluationModel.updateBookletOCR(parseInt(booklet_id), corrections);
         }
 
@@ -352,12 +352,16 @@ exports.evaluate = async (req, res) => {
             return res.status(400).json({ error: 'No confirmed questions found' });
         }
 
-        // Parse OCR output
+        // Parse OCR output defensively
         let ocrAnswers = [];
         try {
             ocrAnswers = typeof booklet.ocr_output === 'string'
                 ? JSON.parse(booklet.ocr_output) : (booklet.ocr_output || []);
         } catch (_) {}
+
+        if (!Array.isArray(ocrAnswers) && ocrAnswers && Array.isArray(ocrAnswers.answers)) {
+            ocrAnswers = ocrAnswers.answers;
+        }
 
         if (!Array.isArray(ocrAnswers) || ocrAnswers.length === 0) {
             return res.status(400).json({ error: 'No OCR data available for this booklet' });
@@ -367,18 +371,21 @@ exports.evaluate = async (req, res) => {
         await evaluationModel.updateSessionStatus(parseInt(session_id), 'evaluation_in_progress');
 
         const evaluationResults = [];
+        const normQ = (q) => String(q || '').replace(/^Q\.?\s*/i, '').trim().toLowerCase();
+        const normSub = (s) => String(s || '').trim().toLowerCase();
 
         for (const question of questions) {
             // Find matching student answer
             const studentAnswer = ocrAnswers.find(a =>
-                String(a.question_number) === String(question.question_number) &&
-                String(a.sub_question || '') === String(question.sub_question || '')
+                normQ(a.question_number) === normQ(question.question_number) &&
+                normSub(a.sub_question) === normSub(question.sub_question)
             );
 
-            // Find matching scheme entry
+            // Find matching scheme entry (by question_id first, then normalized question number)
             const schemeEntry = scheme.find(s =>
-                String(s.question_number) === String(question.question_number) &&
-                String(s.sub_question || '') === String(question.sub_question || '')
+                (s.question_id && s.question_id === question.id) ||
+                (normQ(s.question_number) === normQ(question.question_number) &&
+                 normSub(s.sub_question) === normSub(question.sub_question))
             );
 
             const maxMarks = question.max_marks || 0;
@@ -462,7 +469,7 @@ exports.getResults = async (req, res) => {
         const { booklet_id } = req.params;
         const results = await evaluationModel.getResultsByBooklet(parseInt(booklet_id));
         const booklet = await evaluationModel.getBookletById(parseInt(booklet_id));
-        res.json({ results, booklet });
+        res.json({ results: results || [], booklet });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -473,14 +480,16 @@ exports.getResults = async (req, res) => {
 exports.editMarks = async (req, res) => {
     try {
         const { result_id } = req.params;
-        const { faculty_final_marks } = req.body;
+        const faculty_final_marks = req.body.faculty_final_marks !== undefined
+            ? req.body.faculty_final_marks
+            : req.body.marks;
 
         if (faculty_final_marks === undefined || faculty_final_marks === null) {
-            return res.status(400).json({ error: 'faculty_final_marks is required' });
+            return res.status(400).json({ error: 'faculty_final_marks or marks is required' });
         }
 
-        await evaluationModel.updateResultMarks(parseInt(result_id), faculty_final_marks, req.userId);
-        res.json({ success: true });
+        await evaluationModel.updateResultMarks(parseInt(result_id), parseFloat(faculty_final_marks), req.userId);
+        res.json({ success: true, result_id, faculty_final_marks });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

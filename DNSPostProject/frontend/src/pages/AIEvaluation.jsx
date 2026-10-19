@@ -470,17 +470,16 @@ export function AIEvaluation() {
         if (!bookletId) return;
         try {
             const data = await apiFetch(`/api/evaluation/results/${bookletId}`);
-            setEvaluationResults(Array.isArray(data) ? data : []);
+            const resultsList = Array.isArray(data) ? data : (data?.results || []);
+            setEvaluationResults(resultsList);
             // Populate override marks & feedback
             const marksMap = {};
             const notesMap = {};
-            if (Array.isArray(data)) {
-                data.forEach(r => {
-                    marksMap[r.id] = r.faculty_final_marks !== null && r.faculty_final_marks !== undefined
-                        ? r.faculty_final_marks : r.ai_suggested_marks;
-                    notesMap[r.id] = '';
-                });
-            }
+            resultsList.forEach(r => {
+                marksMap[r.id] = r.faculty_final_marks !== null && r.faculty_final_marks !== undefined
+                    ? r.faculty_final_marks : r.ai_suggested_marks;
+                notesMap[r.id] = '';
+            });
             setOverrideMarks(marksMap);
             setFeedbackNotes(notesMap);
         } catch (err) {
@@ -529,7 +528,11 @@ export function AIEvaluation() {
             setActionLoading(true);
             await apiFetch(`/api/evaluation/results/${resultId}/marks`, {
                 method: 'PUT',
-                body: JSON.stringify({ marks: parseFloat(marks), feedback })
+                body: JSON.stringify({
+                    marks: parseFloat(marks),
+                    faculty_final_marks: parseFloat(marks),
+                    feedback
+                })
             });
             showToast('Marks override and feedback saved!', 'success');
             if (activeBookletId) {

@@ -8,8 +8,23 @@ const { GoogleGenAI } = require('@google/genai');
 
 let pdfjsLib = null;
 
-const EVAL_MODELS = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
-const VISION_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+const configuredModel = process.env.AI_MODEL || 'gemini-flash-lite-latest';
+const EVAL_MODELS = [
+    configuredModel,
+    'gemini-flash-lite-latest',
+    'gemini-flash-latest',
+    'gemini-3.5-flash-lite',
+    'gemini-3.5-flash',
+    'gemini-3.8-flash'
+].filter((m, i, arr) => m && arr.indexOf(m) === i);
+
+const VISION_MODELS = [
+    configuredModel,
+    'gemini-flash-lite-latest',
+    'gemini-flash-latest',
+    'gemini-3.5-flash',
+    'gemini-3.8-flash'
+].filter((m, i, arr) => m && arr.indexOf(m) === i);
 const REQUEST_TIMEOUT = 60000;
 
 function getApiKey() {
@@ -96,21 +111,35 @@ async function callGeminiWithFile(prompt, filePath, mimeType, models = VISION_MO
 }
 
 function parseJSONFromAI(text) {
-    // Try direct parse
+    if (!text || typeof text !== 'string') {
+        throw new Error('Empty or invalid AI response received');
+    }
+
+    // 1. Try direct parse
     try {
-        return JSON.parse(text);
+        return JSON.parse(text.trim());
     } catch (_) {}
 
-    // Strip markdown fences
-    let cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+    // 2. Extract content from markdown code fences (```json ... ``` or ``` ... ```)
+    const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    if (fenceMatch) {
+        try {
+            return JSON.parse(fenceMatch[1].trim());
+        } catch (_) {}
+    }
+
+    // 3. Strip any leading/trailing backticks and re-try
+    const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
     try {
         return JSON.parse(cleaned);
     } catch (_) {}
 
-    // Find array or object
-    const match = cleaned.match(/[\[{][\s\S]*[\]}]/);
+    // 4. Find outermost array or object
+    const match = text.match(/[\[{][\s\S]*[\]}]/);
     if (match) {
-        try { return JSON.parse(match[0]); } catch (_) {}
+        try {
+            return JSON.parse(match[0].trim());
+        } catch (_) {}
     }
 
     throw new Error('Could not parse AI response as JSON');
@@ -357,7 +386,23 @@ Return ONLY a valid JSON array. Example:
 
     let responseText;
     if (isImage || isPDF) {
-        responseText = await callGeminiWithFile(prompt, filePath, isPDF ? 'application/pdf' : mimeType);
+        try {
+            responseText = await callGeminiWithFile(prompt, filePath, isPDF ? 'application/pdf' : mimeType);
+        } catch (err) {
+            console.warn('[AI-EVAL] Vision OCR extraction failed, checking fallback:', err.message);
+        }
+    }
+
+    if (!responseText && isPDF) {
+        try {
+            const pdfText = await readPDFText(filePath);
+            if (pdfText && pdfText.trim().length > 10) {
+                console.log('[AI-EVAL] Vision OCR fallback to PDF text extraction');
+                responseText = await callGemini(prompt + '\n\nDocument text:\n' + pdfText.substring(0, 40000));
+            }
+        } catch (pdfErr) {
+            console.warn('[AI-EVAL] PDF text extraction fallback error:', pdfErr.message);
+        }
     }
 
     if (!responseText) {
@@ -415,6 +460,27 @@ async function evaluateStudentAnswer({
 Marking Breakdown: ${JSON.stringify(scheme.marking_breakdown || [])}
 Partial Marks Rules: ${scheme.partial_marks_rules || 'Award partial marks according to breakdown'}`
         : 'No specific scheme available — evaluate based on fundamental engineering principles and flag for manual faculty review.';
+
+    const trimmedAnswer = (studentAnswer || '').trim();
+    if (!trimmedAnswer || trimmedAnswer === '[No answer provided / Blank]') {
+        return {
+            maximum_marks: maxMarks,
+            suggested_marks: 0,
+            credited_concepts: [],
+            correct_concepts: [],
+            missing_concepts: ['Question was not attempted by student'],
+            missing_points: ['Question was not attempted by student'],
+            incorrect_statements: [],
+            evidence_from_answer: 'No answer provided.',
+            evidence: 'No answer provided.',
+            scoring_explanation: 'Zero marks awarded: Answer booklet contains no response for this question.',
+            explanation: 'Zero marks awarded: Answer booklet contains no response for this question.',
+            evaluation_confidence: 1.0,
+            eval_confidence: 1.0,
+            requires_manual_review: false,
+            needs_review: false
+        };
+    }
 
     const prompt = `You are an academic answer evaluator for an engineering college examination system.
 
