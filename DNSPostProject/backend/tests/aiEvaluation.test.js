@@ -121,7 +121,7 @@ test('AI Evaluation E2E: Complete Answer Booklet Evaluation Lifecycle with Gemin
         assert.equal(modeRes.body.mode, 'easy');
 
         // 5. Create student answer booklet with sample response
-        const studentAnswerText = "Normalization organizes information into related tables instead of repeating the same details many times. It reduces duplicate data and mistakes during updates. It also avoids situations where a record cannot be added without unrelated information, or where deleting one record accidentally removes other useful data. This improves database consistency.";
+        const studentAnswerText = "Normalization organizes database information into related tables instead of repeatedly storing the same details. It reduces duplicate data and helps prevent mistakes when records are updated. It also avoids situations where information cannot be inserted without unrelated data, or deleting one record accidentally removes other useful information. This improves consistency and data integrity.";
 
         const ocrPayload = [
             {
@@ -160,11 +160,22 @@ test('AI Evaluation E2E: Complete Answer Booklet Evaluation Lifecycle with Gemin
 
         console.log(`[TEST] AI suggested marks: ${r.ai_suggested_marks}/${r.max_marks}`);
         console.log(`[TEST] AI Explanation: ${r.ai_explanation}`);
+        console.log(`[TEST] Correct concepts: ${JSON.stringify(r.correct_concepts)}`);
+        console.log(`[TEST] Missing points: ${JSON.stringify(r.missing_points)}`);
 
         // Verify marks constraints
         assert.ok(r.ai_suggested_marks >= 0 && r.ai_suggested_marks <= 10, `Marks must be between 0 and 10: got ${r.ai_suggested_marks}`);
         assert.equal(r.max_marks, 10);
         assert.ok(r.ai_suggested_marks >= 6, `Student answer covers all criteria well, score should be >= 6/10: got ${r.ai_suggested_marks}`);
+
+        // 6b. Verify repeated evaluation submission does not create duplicate records
+        const repeatEvalRes = await apiRequest(`/api/evaluation/evaluate/${sessionId}/${bookletId}`, {
+            method: 'POST',
+            headers: authHeaders
+        });
+        assert.equal(repeatEvalRes.response.status, 200);
+        const countInDb = await query('SELECT count(*) as cnt FROM evaluation_results WHERE booklet_id = ? AND question_id = ?', [bookletId, questionId]);
+        assert.equal(countInDb[0].cnt, 1, 'Repeated evaluation must not create duplicate results (ON DUPLICATE KEY UPDATE)');
 
         // 7. Verify persistence in MySQL
         const dbResult = await queryOne('SELECT * FROM evaluation_results WHERE booklet_id = ? AND question_id = ?', [bookletId, questionId]);
@@ -213,6 +224,38 @@ test('AI Evaluation E2E: Complete Answer Booklet Evaluation Lifecycle with Gemin
     }
 });
 
+test('AI Evaluation: Hard Mode evaluation produces valid rubric assessment with Gemini AI', async () => {
+    const studentAnswerText = "Normalization organizes database information into related tables instead of repeatedly storing the same details. It reduces duplicate data and helps prevent mistakes when records are updated. It also avoids situations where information cannot be inserted without unrelated data, or deleting one record accidentally removes other useful information. This improves consistency and data integrity.";
+
+    const res = await aiEvalService.evaluateStudentAnswer({
+        question: {
+            question_number: '1',
+            question_text: 'Explain database normalization and its advantages.',
+            max_marks: 10
+        },
+        scheme: {
+            question_number: '1',
+            expected_answer: 'Normalization is the process of organizing data to reduce redundancy and eliminate insertion, update, and deletion anomalies while maintaining data integrity.',
+            marking_breakdown: [
+                { point: 'Correct definition of normalization', marks: 2 },
+                { point: 'Reduction of data redundancy', marks: 2 },
+                { point: 'Prevention of insertion anomalies', marks: 2 },
+                { point: 'Prevention of update and deletion anomalies', marks: 2 },
+                { point: 'Improved data integrity and consistency', marks: 2 }
+            ]
+        },
+        studentAnswer: studentAnswerText,
+        evaluationMode: 'hard',
+        maxMarks: 10
+    });
+
+    console.log(`[TEST HARD MODE] Marks: ${res.suggested_marks}/10`);
+    console.log(`[TEST HARD MODE] Explanation: ${res.scoring_explanation}`);
+    assert.ok(res.suggested_marks >= 0 && res.suggested_marks <= 10, 'Hard mode marks must be within 0-10');
+    assert.ok(res.suggested_marks >= 6, 'Well-formulated student answer should achieve >= 6 in hard mode');
+    assert.ok(Array.isArray(res.correct_concepts), 'correct_concepts must be an array');
+});
+
 test('AI Evaluation: Unattempted / blank answer returns 0 marks safely', async () => {
     const res = await aiEvalService.evaluateStudentAnswer({
         question: {
@@ -235,10 +278,27 @@ test('AI Evaluation: Unattempted / blank answer returns 0 marks safely', async (
     assert.ok(res.scoring_explanation.toLowerCase().includes('zero marks') || res.scoring_explanation.toLowerCase().includes('no response'));
 });
 
-test('AI Evaluation: Security — Non-admin student is blocked from evaluation endpoints', async () => {
+test('AI Evaluation: Error handling — Missing booklet or session returns 404', async () => {
+    const admin = await loginUser('admin', 'admin123', 'Admin');
+    const authHeaders = { Authorization: `Bearer ${admin.token}` };
+
+    const res1 = await apiRequest('/api/evaluation/evaluate/999999/999999', { method: 'POST', headers: authHeaders });
+    assert.equal(res1.response.status, 404);
+
+    const res2 = await apiRequest('/api/evaluation/results/999999', { headers: authHeaders });
+    assert.equal(res2.response.status, 200);
+    assert.equal(res2.body.results.length, 0);
+});
+
+test('AI Evaluation: Security — Unauthenticated and non-admin requests are blocked', async () => {
+    // 1. Unauthenticated request
+    const unauthRes = await apiRequest('/api/evaluation/sessions');
+    assert.equal(unauthRes.response.status, 401, 'Unauthenticated request must receive 401');
+
+    // 2. Student role
     const student = await loginUser('student1', 'pass1', 'Student');
     const authHeaders = { Authorization: `Bearer ${student.token}` };
 
-    const res = await apiRequest('/api/evaluation/sessions', { headers: authHeaders });
-    assert.equal(res.response.status, 403, 'Student must receive 403 Forbidden');
+    const studentRes = await apiRequest('/api/evaluation/sessions', { headers: authHeaders });
+    assert.equal(studentRes.response.status, 403, 'Student must receive 403 Forbidden');
 });
