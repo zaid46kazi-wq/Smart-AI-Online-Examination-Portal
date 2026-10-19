@@ -33,23 +33,28 @@ const examController = {
             const exam = await examModel.findById(examId);
             if (!exam) return res.status(404).json({ error: 'Exam not found' });
 
-            // Enforce Exam Date and Time Window for Students
+            // Enforce Exam Date and Time Window for Students (Flexible when 00:00 to 23:59)
             if (req.userRole === 'Student' && exam.exam_date) {
-                const now = new Date();
-                const examDateStr = new Date(exam.exam_date).toISOString().split('T')[0];
-                const todayStr = now.toISOString().split('T')[0];
+                const isFlexibleWindow = (!exam.start_time || exam.start_time === '00:00') && (!exam.end_time || exam.end_time === '23:59');
+                if (!isFlexibleWindow) {
+                    const now = new Date();
+                    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                    const examDateStr = typeof exam.exam_date === 'string'
+                        ? exam.exam_date.split('T')[0].split(' ')[0]
+                        : `${exam.exam_date.getFullYear()}-${String(exam.exam_date.getMonth() + 1).padStart(2, '0')}-${String(exam.exam_date.getDate()).padStart(2, '0')}`;
 
-                if (todayStr < examDateStr) {
-                    return res.status(403).json({ error: `Exam is scheduled for ${examDateStr}. You cannot start early.` });
-                }
-
-                if (todayStr === examDateStr && exam.start_time && exam.end_time) {
-                    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-                    if (currentTime < exam.start_time) {
-                        return res.status(403).json({ error: `Exam starts at ${exam.start_time}. Please wait.` });
+                    if (todayStr < examDateStr) {
+                        return res.status(403).json({ error: `Exam is scheduled for ${examDateStr}. You cannot start early.` });
                     }
-                    if (currentTime > exam.end_time) {
-                        return res.status(403).json({ error: `Exam ended at ${exam.end_time}. You missed the exam window.` });
+
+                    if (todayStr === examDateStr && exam.start_time && exam.end_time) {
+                        const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                        if (currentTime < exam.start_time) {
+                            return res.status(403).json({ error: `Exam starts at ${exam.start_time}. Please wait.` });
+                        }
+                        if (currentTime > exam.end_time) {
+                            return res.status(403).json({ error: `Exam ended at ${exam.end_time}. You missed the exam window.` });
+                        }
                     }
                 }
             }
@@ -109,10 +114,18 @@ const examController = {
             const examId = parseInt(req.params.exam_id);
             if (isNaN(examId)) return res.status(400).json({ error: 'Invalid exam ID' });
             const existing = await resultModel.findByStudentAndExam(req.userId, examId);
+            const exam = await examModel.findById(examId);
             return res.json({
                 exam_id: examId,
                 student_id: req.userId,
                 already_attempted: !!existing,
+                exam_name: exam?.name || exam?.exam_name || 'Online Examination',
+                subject_name: exam?.subjects?.subject_name || exam?.subject_name || 'General',
+                time_limit: exam?.time_limit || 60,
+                total_questions: exam?.total_questions || 0,
+                exam_date: exam?.exam_date || null,
+                start_time: exam?.start_time || null,
+                end_time: exam?.end_time || null,
                 timestamp: new Date().toISOString()
             });
         } catch (err) { next(err); }

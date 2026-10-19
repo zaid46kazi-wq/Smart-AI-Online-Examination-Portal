@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import { apiFetch } from '../services/api';
+import { ShieldCheck, ChevronDown, CheckCircle2, AlertTriangle, Video, Eye, Smartphone, Volume2, Shield } from 'lucide-react';
 
 const DEFAULT_AI_SETTINGS = {
     max_warnings: 3,
@@ -65,7 +66,50 @@ const mergeSafeSettings = (incoming) => {
     };
 };
 
-export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentityVerified, onStepProgress, initViolations = 0 }) {
+// Robust MediaPipe loader: tries local offline assets first, then pinned CDN, with GPU -> CPU fallback
+async function loadFaceLandmarkerHelper() {
+    const attempts = [
+        // Strategy 1: Local assets (Vite served, 100% offline & zero CDN dependency)
+        { wasm: '/wasm', model: '/models/face_landmarker.task', delegate: 'GPU', desc: 'Local assets (GPU)' },
+        { wasm: '/wasm', model: '/models/face_landmarker.task', delegate: 'CPU', desc: 'Local assets (CPU)' },
+        // Strategy 2: Pinned CDN (v0.10.35 matching local package)
+        { wasm: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm', model: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task', delegate: 'GPU', desc: 'CDN v0.10.35 (GPU)' },
+        { wasm: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm', model: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task', delegate: 'CPU', desc: 'CDN v0.10.35 (CPU)' },
+        // Strategy 3: CDN latest fallback
+        { wasm: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm', model: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task', delegate: 'CPU', desc: 'CDN latest (CPU)' }
+    ];
+
+    let lastError = null;
+    for (const config of attempts) {
+        try {
+            console.log(`[AI] Attempting MediaPipe load: ${config.desc}...`);
+            const filesetResolver = await FilesetResolver.forVisionTasks(config.wasm);
+            const landmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+                baseOptions: { modelAssetPath: config.model, delegate: config.delegate },
+                runningMode: 'VIDEO',
+                numFaces: 3,
+                outputFaceBlendshapes: true
+            });
+            console.log(`[AI] MediaPipe loaded successfully using ${config.desc}`);
+            return landmarker;
+        } catch (err) {
+            console.warn(`[AI] ${config.desc} failed:`, err?.message || err);
+            lastError = err;
+        }
+    }
+    throw new Error('MODEL_FAILED:' + (lastError?.message || 'Failed to initialize AI model.'));
+}
+
+export const MediaPipeProctor = forwardRef(function MediaPipeProctor({
+    examId,
+    onViolation,
+    onAutoSubmit,
+    onIdentityVerified,
+    onStepProgress,
+    onTelemetryUpdate,
+    initViolations = 0,
+    className = ''
+}, ref) {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     
@@ -88,6 +132,7 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
     const [micLevel, setMicLevel] = useState(0);
     const [incidents, setIncidents] = useState([]);
     const [isViolated, setIsViolated] = useState(false);
+    const [detailsCollapsed, setDetailsCollapsed] = useState(false);
     
     // Level 11: AI Risk Score (0-100)
     const [riskScore, setRiskScore] = useState(0);
@@ -124,12 +169,15 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
     const eyesClosedFramesRef = useRef(0);
     const multiFaceFramesRef = useRef(0);
     const phoneFramesRef = useRef(0);
+    const phoneStateRef = useRef('PHONE_NOT_DETECTED'); // 'PHONE_NOT_DETECTED' | 'PHONE_CANDIDATE' | 'PHONE_VIOLATION_REPORTED'
+    const phoneAbsentCountRef = useRef(0);
     const lastGazeDirRef = useRef('LOOKING_CENTER');
     const sideGlanceCountRef = useRef(0);
 
     const identityStableTimerRef = useRef(0);
     const lastViolationTypeRef = useRef(null);
     const lastViolationTimeRef = useRef(0);
+    const lastFocusViolationRef = useRef(0);
 
     // Helper: Report step progress to parent
     const reportStep = useCallback((stepNum, status) => {
@@ -140,6 +188,22 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
     useEffect(() => { activeRef.current = active; }, [active]);
     useEffect(() => { isViolatedRef.current = isViolated; }, [isViolated]);
     useEffect(() => { settingsRef.current = settings; }, [settings]);
+
+    // Telemetry Sync with Parent Container
+    useEffect(() => {
+        if (onTelemetryUpdate) {
+            onTelemetryUpdate({
+                isCameraActive: !!streamRef.current,
+                statusText,
+                statusColor,
+                warnings: moveWarnings,
+                maxWarnings: settings.max_warnings || 3,
+                riskScore,
+                riskCategory,
+                active
+            });
+        }
+    }, [moveWarnings, statusText, statusColor, riskScore, riskCategory, active, onTelemetryUpdate]);
 
     // When deferred COCO-SSD loads, start phone detection interval
     useEffect(() => {
@@ -174,57 +238,25 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
             reportStep(1, 'active'); // Step 1: Secure Exam Environment
 
             try {
-                // Launch ALL initialization tasks in parallel
-                const [landmarkerInstance, stream, settingsData] = await Promise.all([
-                    // Task A: MediaPipe Face Landmarker (the heaviest task)
-                    (async () => {
-                        const filesetResolver = await FilesetResolver.forVisionTasks(
-                            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
-                        );
-                        return FaceLandmarker.createFromOptions(filesetResolver, {
-                            baseOptions: {
-                                modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-                                delegate: "GPU"
-                            },
-                            runningMode: "VIDEO",
-                            numFaces: 3,
-                            outputFaceBlendshapes: true
-                        });
-                    })(),
+                reportStep(2, 'active');
 
-                    // Task B: Camera + Mic access (start early so it's ready when models finish)
-                    (async () => {
-                        if (isMounted) reportStep(2, 'active');
-                        try {
-                            return await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 }, audio: true });
-                        } catch (_) {
-                            return await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
-                        }
-                    })(),
-
-                    // Task C: Settings fetch (fast, runs concurrently)
-                    (async () => {
-                        const fetchPromise = apiFetch('/api/proctor/settings');
-                        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500));
-                        try {
-                            return await Promise.race([fetchPromise, timeoutPromise]);
-                        } catch (_) {
-                            return null;
-                        }
-                    })()
-                ]);
-
-                if (!isMounted) return;
-
-                // Apply settings
-                if (settingsData && typeof settingsData === 'object') {
-                    setSettings(mergeSafeSettings(settingsData));
+                // ── Task B: Camera first (independent of AI model loading) ──
+                let stream;
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 }, audio: true });
+                } catch (_) {
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
+                    } catch (camErr) {
+                        throw new Error('CAMERA_DENIED:' + camErr.message);
+                    }
                 }
 
+                if (!isMounted) return;
                 reportStep(1, 'done');
                 reportStep(2, 'done');
 
-                // Attach camera to video element
+                // Attach camera to video element immediately (don't wait for model)
                 streamRef.current = stream;
                 attachCameraListeners(stream);
                 if (videoRef.current) {
@@ -232,6 +264,24 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
                     await videoRef.current.play().catch(() => {});
                 }
                 setupAudio(stream);
+
+                // ── Task C: Settings fetch (fast) ──
+                const settingsData = await (async () => {
+                    try {
+                        return await Promise.race([
+                            apiFetch('/api/proctor/settings'),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500))
+                        ]);
+                    } catch (_) { return null; }
+                })();
+                if (settingsData && typeof settingsData === 'object') {
+                    setSettings(mergeSafeSettings(settingsData));
+                }
+
+                // ── Task A: MediaPipe — local first, CDN fallback, GPU→CPU ──
+                const landmarkerInstance = await loadFaceLandmarkerHelper();
+
+                if (!isMounted) return;
 
                 // Mark model loaded
                 reportStep(3, 'done'); // Step 3: AI Models Loaded
@@ -249,12 +299,19 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
                 startIdentityVerificationFast(landmarkerInstance);
 
             } catch (err) {
-                console.error('[AI] Parallel Init Failed:', err);
-                if (isMounted) {
-                    setStatusText('AI MODEL ERROR');
-                    setIdentityError('Camera permission denied or AI model failed to load. Please grant camera access and reload.');
-                    setStatusColor('#EF4444');
-                    setLoading(false);
+                console.error('[AI] Init Failed:', err);
+                if (!isMounted) return;
+                setStatusColor('#EF4444');
+                setLoading(false);
+                if (err.message?.startsWith('CAMERA_DENIED')) {
+                    setStatusText('CAMERA PERMISSION DENIED');
+                    setIdentityError('Camera access was denied. Please click the camera icon in your browser address bar, allow access, then click Retry below.');
+                } else if (err.message?.startsWith('MODEL_FAILED')) {
+                    setStatusText('AI MODEL LOAD ERROR');
+                    setIdentityError('AI detection model failed to load (GPU and CPU both failed). Please check your internet connection and click Retry below.');
+                } else {
+                    setStatusText('INITIALIZATION ERROR');
+                    setIdentityError('Initialization error: ' + (err.message || 'Unknown error') + '. Please click Retry below.');
                 }
             }
         }
@@ -359,6 +416,7 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
                     }).catch(() => {});
 
                     if (onIdentityVerified) onIdentityVerified(snapshot);
+                    logIncident('Face verified & session activated', 'INFO');
 
                     reportStep(6, 'done');
                     reportStep(7, 'active'); // Step 7: Timer & Monitoring
@@ -378,17 +436,18 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
         requestAnimationFrame(checkStability);
     };
 
-    // Legacy fallback for retry button
+    // Retry button handler — re-attempts camera AND model loading if needed
     const startIdentityVerification = async () => {
-        if (!landmarker) return;
         setLoading(true);
         setIdentityError('');
+        setStatusText('RETRYING...');
 
         try {
             if (!document.fullscreenElement) {
                 await document.documentElement.requestFullscreen().catch(() => {});
             }
 
+            // Re-acquire camera
             let stream;
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 }, audio: true });
@@ -402,18 +461,37 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
                 videoRef.current.srcObject = stream;
                 await videoRef.current.play().catch(() => {});
             }
-
             setupAudio(stream);
+
+            // Re-attempt model loading if it previously failed
+            let lm = landmarker;
+            if (!lm) {
+                console.log('[AI] Retry: Re-attempting MediaPipe model load...');
+                try {
+                    lm = await loadFaceLandmarkerHelper();
+                    setLandmarker(lm);
+                    landmarkerRef.current = lm;
+                } catch (retryErr) {
+                    throw new Error('AI detection model failed to load. Please verify camera permissions and connection, then click Retry.');
+                }
+            }
+
             setLoading(false);
-            startIdentityVerificationFast(landmarker);
+            startIdentityVerificationFast(lm);
         } catch (err) {
-            console.error('[AI] Camera Access Denied:', err);
-            setIdentityError('Camera permission denied. Please grant camera access to begin the exam.');
-            setStatusText('CAMERA PERMISSION DENIED');
+            console.error('[AI] Retry Failed:', err);
+            setIdentityError(err.message || 'Retry failed. Please reload the page.');
+            setStatusText('RETRY FAILED');
             setStatusColor('#EF4444');
             setLoading(false);
         }
     };
+
+    useImperativeHandle(ref, () => ({
+        startIdentityVerification,
+        isVerifying: isVerifyingIdentity,
+        isVerified: identityVerified
+    }));
 
     // DEFERRED COCO-SSD: Load phone detection model in background after exam starts
     const loadCocoSsdDeferred = async () => {
@@ -423,60 +501,118 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
             const cocoSsd = await import('@tensorflow-models/coco-ssd');
             const cocoInstance = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
             cocoModelRef.current = cocoInstance;
-            setCocoModel(cocoInstance); // triggers useEffect to start phone detection interval
-            console.log('[AI] COCO-SSD phone detection model loaded (deferred)');
+            setCocoModel(cocoInstance);
+            if (activeRef.current) {
+                startPhoneDetectionInterval(cocoInstance);
+            }
+            console.log('[AI] COCO-SSD phone detection model loaded and started (deferred)');
         } catch (err) {
             console.warn('[AI] COCO-SSD deferred load failed (phone detection disabled):', err.message);
         }
     };
 
-    // Phone detection interval — extracted so it can be called both from startContinuousProctoring and from the cocoModel useEffect
+    // Phone detection interval — Robust temporal state machine (Part 6 & Part 10)
     const startPhoneDetectionInterval = (cocoInstance) => {
         if (cocoIntervalRef.current) clearInterval(cocoIntervalRef.current);
         if (!cocoInstance) return;
 
         const s = settingsRef.current;
         const intervalMs = parseInt(s.phone_detection_interval_ms) || 600;
-        const confThresh = parseFloat(s.phone_confidence_threshold) || 0.50;
+        const confThresh = parseFloat(s.phone_confidence_threshold) || 0.45;
         const repeatLimit = parseInt(s.phone_repeat_limit) || 2;
 
         cocoIntervalRef.current = setInterval(async () => {
-            if (!videoRef.current || !activeRef.current) return;
+            if (!videoRef.current || !activeRef.current || videoRef.current.readyState < 2) return;
             try {
                 const predictions = await cocoInstance.detect(videoRef.current);
-                const phoneRaw = predictions.find(p => p.class === 'cell phone');
+                const phoneRaw = predictions.find(p => p.class === 'cell phone' || p.class === 'remote');
                 if (debugDataRef.current) debugDataRef.current.phoneConf = phoneRaw ? Math.round(phoneRaw.score * 100) : 0;
 
-                const phone = predictions.find(p => p.class === 'cell phone' && p.score >= confThresh);
+                const phone = predictions.find(p => (p.class === 'cell phone' || p.class === 'remote') && p.score >= confThresh);
                 if (phone) {
-                    phoneFramesRef.current++;
-                    if (phoneFramesRef.current >= repeatLimit) {
-                        setIsViolated(true);
-                        setStatusText('MOBILE PHONE DETECTED');
+                    phoneAbsentCountRef.current = 0;
+
+                    if (phoneStateRef.current === 'PHONE_NOT_DETECTED') {
+                        phoneStateRef.current = 'PHONE_CANDIDATE';
+                        phoneFramesRef.current = 1;
+                    } else if (phoneStateRef.current === 'PHONE_CANDIDATE') {
+                        phoneFramesRef.current++;
+                        if (phoneFramesRef.current >= repeatLimit) {
+                            phoneStateRef.current = 'PHONE_VIOLATION_REPORTED'; // Latched — exactly ONE warning per incident
+                            setIsViolated(true);
+                            setStatusText('MOBILE PHONE CONFIRMED');
+                            setStatusColor('#EF4444');
+                            triggerSecurityEvent({
+                                type: 'PHONE_DETECTED',
+                                message: `Mobile phone detected in examination area (${Math.round(phone.score * 100)}% confidence)`,
+                                severity: 'HIGH',
+                                scoreWeight: settingsRef.current.risk_weights?.PHONE_DETECTED || 30,
+                                confidence: phone.score,
+                                takeSnapshot: true
+                            });
+                        }
+                    } else if (phoneStateRef.current === 'PHONE_VIOLATION_REPORTED') {
+                        // Phone remains visible — maintain alert state without generating duplicate warnings
+                        setStatusText('MOBILE PHONE STILL VISIBLE');
                         setStatusColor('#EF4444');
-                        triggerViolation('PHONE_DETECTED', `Mobile phone detected in camera view (${Math.round(phone.score * 100)}% confidence)`, settingsRef.current.risk_weights.PHONE_DETECTED || 30, phone.score);
-                        phoneFramesRef.current = 0;
                     }
                 } else {
-                    phoneFramesRef.current = 0;
+                    phoneAbsentCountRef.current++;
+                    if (phoneAbsentCountRef.current >= 3) {
+                        // Phone absent for >= 3 cycles (~1.8s) -> clean reset
+                        phoneStateRef.current = 'PHONE_NOT_DETECTED';
+                        phoneFramesRef.current = 0;
+                        phoneAbsentCountRef.current = 0;
+                    }
                 }
             } catch (_) {}
         }, intervalMs);
     };
 
+    // Auto-hook phone detection when cocoModel becomes available or active state changes
+    useEffect(() => {
+        if (cocoModel && active) {
+            startPhoneDetectionInterval(cocoModel);
+        }
+        return () => {
+            if (cocoIntervalRef.current) clearInterval(cocoIntervalRef.current);
+        };
+    }, [cocoModel, active]);
+
+    // Proctor component unmount cleanup (prevents camera, audio context, and timer leaks)
+    useEffect(() => {
+        return () => {
+            activeRef.current = false;
+            if (cocoIntervalRef.current) clearInterval(cocoIntervalRef.current);
+            if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+            if (audioAnimFrameRef.current) cancelAnimationFrame(audioAnimFrameRef.current);
+            if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+                audioCtxRef.current.close().catch(() => {});
+            }
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(t => t.stop());
+            }
+        };
+    }, []);
+
     // Level 7, 8, 9: Security Event Listeners (Tab Switch, Fullscreen, Keyboard Shortcuts)
     useEffect(() => {
         if (!active) return;
 
-        // Level 7: Tab Switch / Window Blur
+        // Level 7: Tab Switch / Window Blur (Unified Debounced Focus Loss)
+        const handleFocusLoss = () => {
+            const now = Date.now();
+            if (now - lastFocusViolationRef.current < 4000) return;
+            lastFocusViolationRef.current = now;
+            triggerViolation('TAB_SWITCH', 'Student switched tabs or unfocused examination window', settings.risk_weights.TAB_SWITCH || 15);
+        };
+
         const handleVisibilityChange = () => {
-            if (document.hidden) {
-                triggerViolation('TAB_SWITCH', 'Student switched tabs or minimized browser window', settings.risk_weights.TAB_SWITCH || 15);
-            }
+            if (document.hidden) handleFocusLoss();
         };
 
         const handleWindowBlur = () => {
-            triggerViolation('WINDOW_BLUR', 'Student unfocused examination window', settings.risk_weights.TAB_SWITCH || 15);
+            handleFocusLoss();
         };
 
         // Level 8: Fullscreen Enforcement
@@ -579,17 +715,35 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
         }
     };
 
-    const logIncidentText = (text) => {
-        setIncidents(prev => [`[${new Date().toLocaleTimeString()}] ${text}`, ...prev.slice(0, 25)]);
+    const logIncident = (eventText, severity = 'INFO') => {
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+        setIncidents(prev => [{
+            id: Date.now() + Math.random(),
+            time: timeStr,
+            event: eventText,
+            severity
+        }, ...prev.slice(0, 35)]);
     };
 
-    // Unified Violation Trigger & Live Risk Score Evaluator (Level 11 & 12)
-    const triggerViolation = (type, msg, scoreWeight = 10, confidence = 0.95) => {
-        if (lastViolationTypeRef.current === type && Date.now() - lastViolationTimeRef.current < 4000) return;
-        lastViolationTypeRef.current = type;
-        lastViolationTimeRef.current = Date.now();
+    // Centralized Security Event Manager (Part 10 & 11)
+    const triggerSecurityEvent = ({
+        type,
+        message,
+        severity = 'MEDIUM',
+        confidence = 0.95,
+        scoreWeight = 10,
+        takeSnapshot = true
+    }) => {
+        const now = Date.now();
+        // 1. Deduplication window: ignore identical event within 4 seconds
+        if (lastViolationTypeRef.current === type && (now - lastViolationTimeRef.current) < 4000) return;
+        // 2. Throttle non-critical events from firing simultaneously within 1.5 seconds
+        if ((now - lastViolationTimeRef.current) < 1500 && severity !== 'HIGH') return;
 
-        // Update Risk Score (Level 11)
+        lastViolationTypeRef.current = type;
+        lastViolationTimeRef.current = now;
+
+        // 3. Update Risk Score
         setRiskScore(prevScore => {
             const nextScore = Math.min(100, prevScore + scoreWeight);
             let cat = 'LOW'; let col = '#10B981';
@@ -602,13 +756,27 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
             return nextScore;
         });
 
+        // 4. Increment Warnings Counter & Persist Evidence
         setMoveWarnings(prev => {
             const nextVal = prev + 1;
-            logIncidentText(`${type}: ${msg} (Warning ${nextVal}/${settings.max_warnings})`);
+            const humanEvent = type === 'HEAD_POSE' ? 'Head pose deviation'
+                : type === 'LOOKING_AWAY' ? 'Eye gaze deviation'
+                : type === 'RAPID_SIDE_GLANCES' ? 'Rapid side glances'
+                : type === 'EYES_CLOSED_LONG' ? 'Eyes closed long duration'
+                : type === 'FACE_MISSING' ? 'Candidate face absent'
+                : type === 'MULTIPLE_FACES' ? 'Multiple faces detected'
+                : type === 'PHONE_DETECTED' ? 'Mobile phone detected'
+                : type === 'TAB_SWITCH' ? 'Tab switched / focus loss'
+                : type === 'FULLSCREEN_EXIT' ? 'Fullscreen exited'
+                : type === 'KEYBOARD_SHORTCUT' ? 'Prohibited key combination'
+                : type === 'RIGHT_CLICK' ? 'Context menu attempted'
+                : type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
 
-            const snapshot = captureSnapshot();
+            logIncident(humanEvent, severity);
+
+            const snapshot = (takeSnapshot || severity === 'HIGH' || severity === 'MEDIUM') ? captureSnapshot() : null;
             
-            // Persist Evidence Record to MySQL (Level 12)
+            // Persist Evidence Record to MySQL
             apiFetch('/api/flag-violation', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -616,12 +784,13 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
                     violation_type: type,
                     confidence,
                     risk_score: scoreWeight,
-                    details: { message: msg, warning_count: nextVal },
+                    severity,
+                    details: { message, warning_count: nextVal, severity },
                     image_data: snapshot
                 })
             }).catch(() => {});
 
-            if (onViolation) onViolation(type, msg, nextVal);
+            if (onViolation) onViolation(type, message, nextVal, severity);
 
             // Auto-Submit Exam if Max Warnings Exceeded
             if (settings.auto_submit_enabled && nextVal >= settings.max_warnings) {
@@ -630,6 +799,11 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
 
             return nextVal;
         });
+    };
+
+    // Legacy adapter for existing call sites
+    const triggerViolation = (type, msg, scoreWeight = 10, confidence = 0.95, severity = 'MEDIUM') => {
+        triggerSecurityEvent({ type, message: msg, scoreWeight, confidence, severity });
     };
 
     // Level 3: 3D Head Pose Angle Calculation (Yaw, Pitch, Roll)
@@ -890,115 +1064,188 @@ export function MediaPipeProctor({ examId, onViolation, onAutoSubmit, onIdentity
     };
 
     return (
-        <aside className="sidebar" style={{ width: 340, left: 'auto', right: 0, top: 64, height: 'calc(100vh - 64px)', background: '#0F172A', color: 'white', borderLeft: '1px solid #1E293B', zIndex: 40, display: 'flex', flexDirection: 'column' }}>
-            {/* Camera Viewport Container */}
-            <div style={{ padding: 16, background: '#020617', position: 'relative' }}>
-                <div style={{ position: 'relative', aspectRatio: '16/9', borderRadius: 12, overflow: 'hidden', border: '2px solid #334155', background: 'black' }}>
-                    <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', opacity: 0.9 }}></video>
-                    <canvas ref={canvasRef} width={480} height={360} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', transform: 'scaleX(-1)' }}></canvas>
-                    
+        <aside className={`w-[270px] shrink-0 bg-white border-l border-slate-200 h-full flex flex-col overflow-hidden text-slate-900 select-none ${className}`}>
+            {/* Header: Security Monitoring | ● Active | Collapse Toggle */}
+            <div className="h-10 px-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${active ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+                    <span className="text-xs font-bold text-slate-800 tracking-tight">Security Monitoring</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                        {active ? 'Active' : 'Standby'}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => setDetailsCollapsed(prev => !prev)}
+                        aria-label={detailsCollapsed ? "Expand security details" : "Collapse security details"}
+                        className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 rounded transition-colors"
+                        title={detailsCollapsed ? "Expand details" : "Collapse details"}
+                    >
+                        <ChevronDown size={14} className={`transform transition-transform duration-200 ${detailsCollapsed ? '-rotate-90' : 'rotate-0'}`} />
+                    </button>
+                </div>
+            </div>
+
+            {/* Camera Viewport Container (Aspect 16:9, ~246px wide, no vertical stretching) */}
+            <div className="p-3 bg-slate-50/50 border-b border-slate-200 shrink-0">
+                <div className="relative aspect-video rounded-lg overflow-hidden border border-slate-300 bg-slate-900 shadow-2xs">
+                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover -scale-x-100 opacity-95"></video>
+                    <canvas ref={canvasRef} width={480} height={360} className="absolute inset-0 w-full h-full pointer-events-none -scale-x-100"></canvas>
+
                     {/* Level 14: AI Live Telemetry Overlay (Debug Mode) */}
                     {isDebugMode && (
-                        <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', border: '1px solid #6366F1', borderRadius: 6, padding: '8px 12px', fontSize: 10, color: '#38BDF8', fontFamily: 'monospace', zIndex: 60, width: 140 }}>
-                            <div style={{ color: '#F8FAFC', fontWeight: 900, marginBottom: 4, textAlign: 'center', borderBottom: '1px solid #334155', paddingBottom: 4 }}>AI TELEMETRY</div>
+                        <div className="absolute top-1.5 right-1.5 bg-slate-950/90 border border-blue-500 rounded p-1.5 text-[9px] text-blue-200 font-mono z-50 w-28">
+                            <div className="text-white font-bold mb-1 text-center border-b border-slate-800 pb-0.5">TELEMETRY</div>
                             <div className="flex justify-between"><span>FPS:</span> <span>{debugDataRef.current?.fps}</span></div>
                             <div className="flex justify-between"><span>FACES:</span> <span>{debugDataRef.current?.faceCount}</span></div>
                             <div className="flex justify-between"><span>CONF:</span> <span>{debugDataRef.current?.faceConf}%</span></div>
-                            <div className="flex justify-between"><span>YAW:</span> <span>{debugDataRef.current?.yaw}°</span></div>
-                            <div className="flex justify-between"><span>PITCH:</span> <span>{debugDataRef.current?.pitch}°</span></div>
-                            <div className="flex justify-between"><span>ROLL:</span> <span>{debugDataRef.current?.roll}°</span></div>
-                            <div className="flex justify-between"><span>GAZE:</span> <span>{debugDataRef.current?.eyeDir.replace('LOOKING_', '')}</span></div>
                             <div className="flex justify-between"><span>PHONE:</span> <span>{debugDataRef.current?.phoneConf}%</span></div>
                         </div>
                     )}
 
-                    {/* Level 1: Pre-Exam Verification Gate Overlay */}
+                    {/* Pre-Exam Identity Gate Overlay (before verification) */}
                     {!active && (
-                        <div id="startOverlay" style={{ position: 'absolute', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20, textAlign: 'center', background: 'rgba(15,23,42,0.96)', backdropFilter: 'blur(12px)' }}>
-                            <div style={{ width: 44, height: 44, background: 'rgba(99,102,241,0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8, border: '1px solid rgba(99,102,241,0.3)' }}>
-                                <span className="material-symbols-outlined animate-pulse" style={{ color: '#818CF8', fontSize: 24 }}>fingerprint</span>
+                        <div id="startOverlay" className="absolute inset-0 z-40 flex flex-col items-center justify-center p-3 text-center bg-white/95">
+                            <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-1.5 border border-blue-200">
+                                <ShieldCheck size={18} />
                             </div>
-                            <h3 style={{ color: 'white', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Identity & AI Gate</h3>
-                            <p style={{ fontSize: 9, color: '#94A3B8', marginBottom: 12, textTransform: 'uppercase', fontWeight: 700 }}>Face stability 3s required to unlock exam</p>
+                            <h4 className="text-[11px] font-bold text-slate-900 uppercase tracking-wide mb-0.5">Identity Verification</h4>
+                            <p className="text-[10px] text-slate-500 mb-2 leading-tight">Face alignment required to start</p>
 
                             {isVerifyingIdentity && (
-                                <div style={{ width: '100%', marginBottom: 12 }}>
-                                    <div style={{ fontSize: 9, color: '#818CF8', fontWeight: 800, marginBottom: 4 }}>VERIFYING STABILITY {identityProgress}%</div>
-                                    <div style={{ height: 6, width: '100%', background: '#1E293B', borderRadius: 99, overflow: 'hidden' }}>
-                                        <div style={{ height: '100%', width: `${identityProgress}%`, background: '#6366F1', transition: 'width 0.1s linear' }}></div>
+                                <div className="w-full mb-2">
+                                    <div className="text-[10px] text-blue-600 font-semibold mb-1">Verifying face {identityProgress}%</div>
+                                    <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                                        <div className="h-full bg-blue-600 rounded-full transition-all duration-100" style={{ width: `${identityProgress}%` }}></div>
                                     </div>
                                 </div>
                             )}
 
                             {identityError && (
-                                <div style={{ color: '#EF4444', fontSize: 9, fontWeight: 800, marginBottom: 8, padding: '4px 8px', background: 'rgba(239,68,68,0.1)', borderRadius: 6 }}>
+                                <div className="text-[10px] text-red-600 font-semibold mb-2 p-1.5 bg-red-50 border border-red-200 rounded text-left">
                                     {identityError}
                                 </div>
                             )}
 
-                            <button onClick={startIdentityVerification} disabled={loading || isVerifyingIdentity} className="btn btn-primary btn-sm" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', width: '100%' }}>
-                                {loading ? 'Loading Models...' : isVerifyingIdentity ? 'Hold Face Still...' : 'Verify Identity & Start Exam'}
+                            <button
+                                type="button"
+                                onClick={startIdentityVerification}
+                                disabled={loading || isVerifyingIdentity}
+                                className="px-3 py-1.5 rounded-md text-[11px] font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors w-full shadow-xs disabled:opacity-50"
+                            >
+                                {loading ? 'Loading AI Model...' : isVerifyingIdentity ? 'Hold Face Steady...' : 'Verify & Begin'}
                             </button>
                         </div>
                     )}
 
+                    {/* Active Tracking Subtle Pill */}
                     {active && (
-                        <div style={{ position: 'absolute', bottom: 8, left: 8, padding: '4px 8px', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', borderRadius: 4, border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: 9, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor }} className="animate-pulse"></span>
-                            <span>{statusText}</span>
+                        <div className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded bg-black/60 backdrop-blur-xs text-white text-[10px] font-medium flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: statusColor || '#10B981' }}></span>
+                            <span className="truncate max-w-[170px]">{statusText || 'AI Tracking'}</span>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Level 11: Dynamic AI Risk Score Badge & Audio Indicator */}
-            <div style={{ padding: '10px 16px', background: '#020617', borderBottom: '1px solid #1E293B' }}>
-                <div className="flex justify-between items-center mb-1.5">
-                    <span style={{ color: '#94A3B8', fontSize: 9, fontWeight: 800, textTransform: 'uppercase' }}>AI Risk Score</span>
-                    <span style={{ fontSize: 11, fontWeight: 900, color: riskColor, background: `${riskColor}15`, padding: '2px 8px', borderRadius: 6, border: `1px solid ${riskColor}40` }}>
-                        {riskScore} / 100 ({riskCategory})
+            {/* Collapsible Details Area */}
+            <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-200 ${detailsCollapsed ? 'hidden' : 'flex'}`}>
+                {/* Security Status & Risk Meter (Requirement 13) */}
+                <div className="p-3 bg-white border-b border-slate-200 space-y-2.5 shrink-0">
+                    <div className="space-y-1">
+                        <div className="flex justify-between items-center text-xs">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Security Risk</span>
+                            <span className="font-semibold text-xs" style={{ color: riskColor }}>
+                                {riskScore}/100 <span className="text-[10px] font-bold uppercase text-slate-500">({riskCategory})</span>
+                            </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${riskScore}%`, backgroundColor: riskColor }}></div>
+                        </div>
+                    </div>
+
+                    {/* Compact Metric Rows */}
+                    <div className="divide-y divide-slate-100 border-t border-slate-100 pt-1 text-xs">
+                        <div className="flex items-center justify-between py-1.5">
+                            <span className="text-slate-500 text-[11px]">Warnings</span>
+                            <span className={`font-semibold text-xs ${moveWarnings > 0 ? 'text-amber-600' : 'text-slate-700'}`}>
+                                {moveWarnings} / {settings.max_warnings}
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between py-1.5">
+                            <span className="text-slate-500 text-[11px]">Session</span>
+                            <span className="inline-flex items-center gap-1 font-semibold text-xs text-emerald-600">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                <span>{isViolated ? 'Warning' : 'Verified'}</span>
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between py-1.5">
+                            <span className="text-slate-500 text-[11px]">Audio Level</span>
+                            <div className="flex items-center gap-2">
+                                <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-blue-500 rounded-full transition-all duration-150" style={{ width: `${micLevel}%` }}></div>
+                                </div>
+                                <span className="font-mono text-[10px] text-slate-600 w-7 text-right">{micLevel}%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Recent Security Events / Proctoring Audit Log (Requirement 14) */}
+                <div className="flex-1 flex flex-col min-h-0 bg-white">
+                    <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0">
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Recent Events</span>
+                        <span className="text-[10px] text-slate-400 font-medium">{incidents.length} logged</span>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+                        {incidents.length === 0 ? (
+                            <div className="h-24 flex flex-col items-center justify-center text-center text-slate-400 p-2">
+                                <ShieldCheck size={18} className="text-slate-300 mb-1" />
+                                <span className="text-[10px]">No security events logged</span>
+                            </div>
+                        ) : (
+                            incidents.map((item) => (
+                                <div key={item.id} className="p-1.5 rounded bg-slate-50 border border-slate-200/80 text-[11px]">
+                                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                                        <span className="font-mono text-[10px] text-slate-400">{item.time}</span>
+                                        <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded uppercase ${
+                                            item.severity === 'HIGH' ? 'bg-red-50 text-red-700 border border-red-200' :
+                                            item.severity === 'MEDIUM' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                            item.severity === 'LOW' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                            'bg-slate-100 text-slate-600 border border-slate-200'
+                                        }`}>
+                                            {item.severity}
+                                        </span>
+                                    </div>
+                                    <p className="text-slate-700 font-medium truncate leading-tight" title={item.event}>
+                                        {item.event}
+                                    </p>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* When collapsed, show minimal status footer */}
+            {detailsCollapsed && (
+                <div className="p-3 bg-slate-50 border-t border-slate-200 text-center shrink-0">
+                    <span className="text-[10px] font-semibold text-slate-500 block mb-1">
+                        Risk: {riskScore}/100 • Warnings: {moveWarnings}/{settings.max_warnings}
                     </span>
+                    <button
+                        type="button"
+                        onClick={() => setDetailsCollapsed(false)}
+                        className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                        Show Details ▾
+                    </button>
                 </div>
-                <div style={{ height: 5, width: '100%', background: '#1E293B', borderRadius: 99, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${riskScore}%`, background: riskColor, transition: 'width 0.3s ease' }}></div>
-                </div>
-
-                <div className="flex justify-between items-center text-xs mt-3 mb-1">
-                    <span style={{ color: '#94A3B8', fontSize: 9, fontWeight: 800, textTransform: 'uppercase' }}>Audio Level</span>
-                    <span style={{ fontSize: 9, fontWeight: 800, color: '#94A3B8' }}>{micLevel}%</span>
-                </div>
-                <div style={{ height: 4, width: '100%', background: '#1E293B', borderRadius: 99, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${micLevel}%`, background: '#6366F1', transition: 'width 0.1s ease' }}></div>
-                </div>
-            </div>
-
-            {/* Warnings Counter & Security Status */}
-            <div style={{ padding: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div style={{ padding: 10, background: 'rgba(2,6,23,0.6)', border: '1px solid #1E293B', borderRadius: 10, textAlign: 'center' }}>
-                    <span style={{ fontSize: 9, color: '#94A3B8', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: 2 }}>Warnings</span>
-                    <span style={{ fontSize: 16, fontWeight: 900, color: moveWarnings > 0 ? '#EF4444' : '#F59E0B' }}>{moveWarnings} / {settings.max_warnings}</span>
-                </div>
-                <div style={{ padding: 10, background: 'rgba(2,6,23,0.6)', border: '1px solid #1E293B', borderRadius: 10, textAlign: 'center' }}>
-                    <span style={{ fontSize: 9, color: '#94A3B8', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: 2 }}>Integrity</span>
-                    <span style={{ fontSize: 14, fontWeight: 900, color: isViolated ? '#EF4444' : '#10B981', textTransform: 'uppercase' }}>
-                        {isViolated ? 'Warning' : 'Verified'}
-                    </span>
-                </div>
-            </div>
-
-            {/* Incidents Log */}
-            <div style={{ flex: 1, padding: '0 12px 12px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', color: '#64748B', letterSpacing: '0.1em', marginBottom: 6 }}>
-                    Security Incidents Log
-                </div>
-                <div className="custom-scroll" style={{ flex: 1, background: 'rgba(2,6,23,0.5)', borderRadius: 10, border: '1px solid #1E293B', padding: 10, overflowY: 'auto', fontSize: 10 }}>
-                    {incidents.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '20px 0', color: '#475569', fontWeight: 700, fontSize: 9, textTransform: 'uppercase' }}>No Security Violations</div>
-                    ) : (
-                        incidents.map((log, idx) => <div key={idx} style={{ color: '#94A3B8', marginBottom: 4, borderBottom: '1px solid #1E293B', paddingBottom: 4, fontSize: 9 }}>{log}</div>)
-                    )}
-                </div>
-            </div>
+            )}
         </aside>
     );
-}
+});
+
+export default MediaPipeProctor;

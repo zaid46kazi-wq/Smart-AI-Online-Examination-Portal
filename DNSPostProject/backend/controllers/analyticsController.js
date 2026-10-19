@@ -37,6 +37,64 @@ const analyticsController = {
                 distribution
             });
         } catch (err) { next(err); }
+    },
+
+    chatAssistant: async (req, res, next) => {
+        try {
+            const { message, context = {} } = req.body;
+            if (!message || typeof message !== 'string' || message.trim().length === 0) {
+                return res.status(400).json({ error: 'Message cannot be empty.' });
+            }
+
+            const cleanMsg = message.trim();
+            const subject = context.subject || 'Engineering & Computer Science';
+            const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
+
+            let reply = '';
+
+            if (apiKey) {
+                try {
+                    const { GoogleGenAI } = require('@google/genai');
+                    const ai = new GoogleGenAI({ apiKey });
+                    const prompt = `You are the AI Academic Study Assistant and Examination Doubt Solver for AGMR College of Engineering.
+The student is studying or taking assessments related to "${subject}".
+Student query: "${cleanMsg}"
+
+Instructions:
+1. Provide a direct, technically accurate, and concise explanation in 2-4 sentences or clear bullet points.
+2. If relevant, include a practical example or key formula.
+3. Keep the tone academic, encouraging, and supportive.
+4. Do NOT disclose answers to active live exams; instead explain the underlying conceptual principle.`;
+
+                    const responsePromise = ai.models.generateContent({
+                        model: 'gemini-3.5-flash-lite',
+                        contents: prompt
+                    });
+                    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 7000));
+                    const resp = await Promise.race([responsePromise, timeoutPromise]);
+                    reply = resp?.text || '';
+                } catch (_) {}
+            }
+
+            if (!reply || reply.trim().length === 0) {
+                const lower = cleanMsg.toLowerCase();
+                if (lower.includes('proctor') || lower.includes('face') || lower.includes('cheat') || lower.includes('camera')) {
+                    reply = `The Smart AI Examination Portal employs multi-modal proctoring via MediaPipe Face Mesh, 3D head pose estimation, iris gaze tracking, and COCO-SSD mobile device detection. Maintain front-facing attention and ensure a well-lit environment to prevent integrity flags.`;
+                } else if (lower.includes('time') || lower.includes('duration') || lower.includes('submit')) {
+                    reply = `Assessments are strictly timed and monitored. Your countdown begins only after face verification is verified. Answers are auto-submitted when the timer expires or if 3 proctoring warnings are issued.`;
+                } else if (lower.includes('score') || lower.includes('result') || lower.includes('grade')) {
+                    reply = `Official grading is computed securely on the backend server. A score of 40% or higher is required to pass. You can download your official verified scorecard and AI Proctoring Integrity Audit report directly from your portal.`;
+                } else {
+                    reply = `Key concepts in ${subject} emphasize understanding the core architecture, algorithm time/space complexities, and systematic problem breakdown. For this topic, focus on mastering fundamental definitions, verifying boundary conditions, and reviewing past exam problem sets.`;
+                }
+            }
+
+            return res.json({
+                success: true,
+                reply: reply.trim(),
+                timestamp: new Date().toISOString()
+            });
+        } catch (err) { next(err); }
     }
 };
 

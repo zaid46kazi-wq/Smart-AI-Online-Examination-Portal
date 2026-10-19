@@ -16,12 +16,21 @@ const studentController = {
     create: async (req, res, next) => {
         try {
             const { username, password, name, usn, email } = req.body;
+            const existing = await userModel.findByUsernameOrEmail(username, 'Student');
+            if (existing) {
+                return res.status(400).json({ error: `Student with username '${username}' already exists.` });
+            }
             const hashedPassword = await userModel.hashPassword(password || 'pass123');
             const id = await userModel.createStudent({
                 username, password: hashedPassword, name, usn, email
             });
             return res.json({ success: true, id });
-        } catch (err) { next(err); }
+        } catch (err) {
+            if (err.code === 'ER_DUP_ENTRY') {
+                return res.status(400).json({ error: 'Username or USN already registered in database.' });
+            }
+            next(err);
+        }
     },
 
     importExcel: async (req, res, next) => {

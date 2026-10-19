@@ -13,6 +13,7 @@ const CreateExam = lazy(() => import('./pages/CreateExam').then(m => ({ default:
 const ResultView = lazy(() => import('./pages/ResultView').then(m => ({ default: m.ResultView })));
 const AllResults = lazy(() => import('./pages/AllResults').then(m => ({ default: m.AllResults })));
 const AISettings = lazy(() => import('./pages/AISettings').then(m => ({ default: m.AISettings })));
+const AIEvaluation = lazy(() => import('./pages/AIEvaluation').then(m => ({ default: m.AIEvaluation })));
 
 import './css/app.css';
 
@@ -56,6 +57,7 @@ export function App() {
                         <Route path="/student" element={<ProtectedRoute role="Student"><StudentDashboard /></ProtectedRoute>} />
                         <Route path="/student/dashboard" element={<ProtectedRoute role="Student"><StudentDashboard /></ProtectedRoute>} />
                         <Route path="/create-exam" element={<ProtectedRoute role="Admin"><CreateExam /></ProtectedRoute>} />
+                        <Route path="/ai-evaluation" element={<ProtectedRoute role="Admin"><AIEvaluation /></ProtectedRoute>} />
                         <Route path="/results" element={<ProtectedRoute role="Admin"><AllResults /></ProtectedRoute>} />
                         <Route path="/ai-settings" element={<ProtectedRoute role="Admin"><AISettings /></ProtectedRoute>} />
                         <Route path="/admin/settings" element={<ProtectedRoute role="Admin"><AISettings /></ProtectedRoute>} />

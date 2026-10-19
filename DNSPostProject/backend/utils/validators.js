@@ -49,7 +49,8 @@ const submitExamSchema = z.object({
     exam_id: z.number({ required_error: 'exam_id is required' }),
     answers: z.record(z.string(), z.string()).optional().default({}),
     autoSubmit: z.boolean().optional().default(false),
-    reason: z.string().optional().default('NORMAL')
+    reason: z.string().optional().default('NORMAL'),
+    submission_reason: z.string().optional()
 });
 
 const flagViolationSchema = z.object({

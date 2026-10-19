@@ -23,11 +23,75 @@ const studentRoutes = require('./routes/studentRoutes');
 const resultRoutes = require('./routes/resultRoutes');
 const proctorRoutes = require('./routes/proctorRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
+const evaluationRoutes = require('./routes/evaluationRoutes');
 
 // --- Middleware ---
 const { errorHandler } = require('./middleware/errorHandler');
+const { query } = require('./config/db');
+const { generateAcademicReply, normalizeChatHistory } = require('./services/aiChatService');
 
 const app = express();
+
+function normalizeText(value) {
+    return String(value || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function hasAnswerIntent(message) {
+    const normalized = normalizeText(message);
+    if (!normalized) return false;
+
+    const answerPatterns = [
+        'answer', 'answers', 'correct answer', 'correct option', 'which option',
+        'select the', 'choose the', 'solve this', 'solve the', 'solve question',
+        'multiple choice', 'mcq', 'question no', 'question number', 'option a',
+        'option b', 'option c', 'option d', 'give me the answer', 'give answer'
+    ];
+
+    return answerPatterns.some((pattern) => normalized.includes(pattern));
+}
+
+function isLikelyCurrentExamQuestion(message, examQuestionText) {
+    const normalizedMessage = normalizeText(message);
+    const normalizedQuestion = normalizeText(examQuestionText);
+
+    if (!normalizedMessage || !normalizedQuestion) return false;
+    
+    // Direct identical copy
+    if (normalizedMessage === normalizedQuestion) return true;
+
+    const answerSeeking = hasAnswerIntent(message);
+
+    // If message asks specifically for the answer to a question number while in exam
+    if (answerSeeking && (/question\s*\d+|q\s*\d+/i.test(message) || /answer\s+to\s+question/i.test(message))) {
+        return true;
+    }
+
+    // Substring containment only if long enough and indicates exam answer intent
+    if (normalizedQuestion.length > 20 && (
+        normalizedQuestion.includes(normalizedMessage) ||
+        normalizedMessage.includes(normalizedQuestion)
+    )) {
+        if (answerSeeking || normalizedMessage.length > 30) {
+            return true;
+        }
+    }
+
+    const messageWords = normalizedMessage.split(/\s+/).filter((word) => word.length > 2);
+    const questionWords = normalizedQuestion.split(/\s+/).filter((word) => word.length > 2);
+
+    if (messageWords.length < 3 || questionWords.length < 3) return false;
+
+    const overlap = messageWords.filter((word) => questionWords.includes(word));
+    const overlapRatio = overlap.length / Math.max(messageWords.length, questionWords.length);
+
+    // High overlap + explicit answer-seeking intent indicates student is trying to solve the test question
+    return overlapRatio >= 0.65 && answerSeeking;
+}
+
 // --- CORS & Security Headers ---
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
     ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
@@ -91,7 +155,10 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 const allowedMimeTypes = [
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-excel'
+    'application/vnd.ms-excel',
+    'text/csv',
+    'text/plain',
+    'application/csv'
 ];
 
 const upload = multer({
@@ -102,12 +169,12 @@ const upload = multer({
     limits: { fileSize: 25 * 1024 * 1024 }, // 25MB limit
     fileFilter: (req, file, cb) => {
         const ext = path.extname(file.originalname).toLowerCase();
-        const validExt = ['.pdf', '.xlsx', '.xls'].includes(ext);
+        const validExt = ['.pdf', '.xlsx', '.xls', '.csv'].includes(ext);
         const validMime = allowedMimeTypes.includes(file.mimetype) || file.mimetype === 'application/octet-stream';
         if (validExt && validMime) {
             return cb(null, true);
         }
-        cb(new Error('Invalid file type. Only PDF and Excel files (.pdf, .xlsx, .xls) are allowed.'));
+        cb(new Error('Invalid file type. Only PDF, Excel (.xlsx, .xls), and CSV (.csv) files are allowed.'));
     }
 });
 
@@ -129,6 +196,7 @@ app.use('/api/students', upload.single('file'), studentRoutes);
 app.use('/api/results', resultRoutes);
 app.use('/api/proctor', proctorRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/evaluation', evaluationRoutes);
 
 // --- Direct Compatibility Alias Endpoints ---
 app.post('/api/questions/generate-ai', upload.single('file'), requireAdmin, examController.generateAIQuestions);
@@ -140,21 +208,169 @@ app.get('/api/my-results', requireStudent, resultController.getMyResults);
 app.get('/api/rank-list/:exam_id', requireAuth, resultController.getRankList);
 app.get('/api/leaderboard', requireAuth, resultController.getLeaderboard);
 app.post('/api/submit', requireStudent, validate(submitExamSchema), resultController.submit);
+app.post('/api/submit-exam', requireStudent, validate(submitExamSchema), resultController.submit);
+app.get('/api/result/:id', requireAuth, resultController.getById);
+app.get('/api/results/:id', requireAuth, resultController.getById);
 app.get('/api/result-pdf/:result_id', requireAuth, resultController.downloadPDF);
 app.get('/api/hall-ticket/:exam_id', requireStudent, resultController.downloadHallTicket);
+app.get('/api/ai-analysis/:result_id', requireAuth, resultController.getAIAnalysis);
 app.post('/api/proctor-status', requireStudent, proctorController.updateStatus);
 app.post('/api/flag-violation', requireAuth, validate(flagViolationSchema), proctorController.flagViolation);
 app.get('/api/exam-security-status', requireStudent, proctorController.getSecurityStatus);
-app.get('/api/incidents/:exam_id', requireAdmin, proctorController.getIncidents);
 app.post('/api/proctor/verify-identity', requireStudent, proctorController.verifyIdentity);
 app.get('/api/proctor/settings', requireAuth, proctorController.getSettings);
 app.post('/api/proctor/settings', requireAdmin, proctorController.updateSettings);
 app.get('/api/proctor/report/:result_id', requireAuth, proctorController.getReportData);
 app.get('/api/proctor/report-pdf/:result_id', requireAuth, proctorController.generateReportPDF);
 
-// Health Check Endpoint
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime() });
+// Canonical student-facing AI tutor endpoint.
+app.post('/api/ai/chat', requireStudent, async (req, res) => {
+    try {
+        const { message, history = [] } = req.body;
+        if (!message || typeof message !== 'string' || message.trim().length === 0) {
+            return res.status(400).json({ success: false, error: 'Message is required.' });
+        }
+
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            console.error('[AI ERROR] Gemini API key is not configured on the server.');
+            return res.status(503).json({
+                success: false,
+                error: 'AI assistant is currently unavailable. Gemini API key is not configured on the server.'
+            });
+        }
+
+        // 1. Housekeeping: expire stale active sessions whose time limit has elapsed
+        await query(`
+            UPDATE proctor_status ps
+            JOIN exams e ON ps.exam_id = e.id
+            SET ps.status = 'expired'
+            WHERE ps.student_id = ?
+              AND ps.status = 'active'
+              AND ps.exam_started_at IS NOT NULL
+              AND TIMESTAMPDIFF(MINUTE, ps.exam_started_at, NOW()) >= e.time_limit
+        `, [req.userId]).catch(() => {});
+
+        // 2. Housekeeping: mark submitted sessions where student submitted an attempt
+        await query(`
+            UPDATE proctor_status ps
+            JOIN results r ON ps.student_id = r.student_id AND ps.exam_id = r.exam_id
+            SET ps.status = 'submitted'
+            WHERE ps.student_id = ?
+              AND ps.status = 'active'
+        `, [req.userId]).catch(() => {});
+
+        // 3. Check if candidate currently has a verified, ongoing active exam session
+        const activeExamRows = await query(`
+            SELECT ps.id, ps.exam_id, ps.exam_started_at, e.name as exam_name, e.time_limit
+            FROM proctor_status ps
+            JOIN exams e ON ps.exam_id = e.id
+            WHERE ps.student_id = ?
+              AND ps.status IN ('active', 'flagged')
+              AND ps.identity_verified = 1
+              AND ps.exam_started_at IS NOT NULL
+              AND TIMESTAMPDIFF(MINUTE, ps.exam_started_at, NOW()) < e.time_limit
+              AND NOT EXISTS (
+                  SELECT 1 FROM results r 
+                  WHERE r.student_id = ps.student_id AND r.exam_id = ps.exam_id
+              )
+            ORDER BY ps.exam_started_at DESC
+            LIMIT 1
+        `, [req.userId]);
+
+        const activeExam = activeExamRows.length > 0 ? activeExamRows[0] : null;
+
+        // 4. Anti-cheating verification if candidate has an ongoing exam in progress
+        if (activeExam) {
+            const activeQuestions = await query(
+                `SELECT question FROM questions WHERE exam_id = ?`,
+                [activeExam.exam_id]
+            );
+
+            const isExamQuestion = activeQuestions.some((qRow) =>
+                isLikelyCurrentExamQuestion(message, qRow.question)
+            );
+
+            if (isExamQuestion) {
+                console.log(`[AI RESTRICTION] Blocked prompt matching active exam ${activeExam.exam_id} for student ${req.userId}: "${message.slice(0, 50)}"`);
+                return res.status(403).json({
+                    success: false,
+                    error: "I can't provide answers to an active examination question. I can explain the underlying concept so you can learn it."
+                });
+            }
+        }
+
+        console.log(`[AI] Request received from student ${req.userId}: "${message.slice(0, 50)}..."`);
+        console.log('[AI] Gemini request started');
+
+        const configuredModel = process.env.AI_MODEL || 'gemini-flash-lite-latest';
+        const configuredTimeout = parseInt(process.env.AI_CHAT_TIMEOUT_MS || '30000', 10);
+
+        const reply = await generateAcademicReply({
+            message: message.trim(),
+            history: normalizeChatHistory(history),
+            activeExam,
+            apiKey,
+            model: configuredModel,
+            timeoutMs: configuredTimeout,
+        });
+
+        console.log('[AI] Gemini response received successfully');
+        return res.json({ success: true, reply });
+    } catch (err) {
+        console.error('[AI ERROR] Gemini request failed:', {
+            code: err?.code,
+            status: err?.status,
+            message: err.message,
+            stack: err.stack
+        });
+
+        let status = 500;
+        let message = 'AI service is temporarily unavailable. Please try again.';
+
+        if (err.status === 400 || err.code === 400) {
+            status = 400;
+            message = err.message || 'Invalid request to AI assistant.';
+        } else if (err.status === 401 || err.code === 401 || err.code === 'MISSING_API_KEY') {
+            status = 503;
+            message = 'AI assistant configuration issue on server. Please contact administrator.';
+        } else if (err.status === 403 || err.code === 403) {
+            status = 403;
+            message = err.message || "I can't provide answers to an active examination question. I can explain the underlying concept so you can learn it.";
+        } else if (err.status === 429 || err.code === 429 || /rate limit|quota|resource exhausted/i.test(err.message)) {
+            status = 429;
+            message = 'AI service rate limit reached. Please wait a moment and try again.';
+        } else if (err.status === 504 || err.code === 'ETIMEDOUT' || /timed? ?out/i.test(err.message)) {
+            status = 504;
+            message = 'AI request timed out while generating response. Please try again.';
+        } else if (err.status === 404 || /not found|retired|unavailable/i.test(err.message)) {
+            status = 502;
+            message = 'The configured AI model is currently unavailable. Please try again later.';
+        }
+
+        return res.status(status).json({ success: false, error: message });
+    }
+});
+
+// Health Check Endpoint — verifies both the HTTP process and MySQL connectivity.
+app.get('/api/health', async (req, res) => {
+    try {
+        await query('SELECT 1 AS healthy');
+        res.json({
+            status: 'ok',
+            database: { ok: true, engine: 'mysql8' },
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime()
+        });
+    } catch (error) {
+        console.error('[HEALTH] MySQL check failed:', error.message);
+        res.status(503).json({
+            status: 'degraded',
+            database: { ok: false, error: 'MySQL connectivity unavailable' },
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime()
+        });
+    }
 });
 
 // --- Serve React Build Frontend ---

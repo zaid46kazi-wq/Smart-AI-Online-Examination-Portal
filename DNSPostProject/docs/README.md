@@ -1,20 +1,20 @@
-# Smart AI Online Examination Portal
+# 🎓 Smart AI Online Examination System — Technical Documentation (v3.1.0)
 
-An AI-powered, production-grade Online Examination System developed for colleges and universities.
+An enterprise-grade, AI-powered online examination platform developed for colleges and universities.
 
-Migrated to **React + Vite**, **Express Node.js Backend**, **MySQL 8 Database**, **JWT Authentication**, **Zod Request Validation**, and **MediaPipe Face Landmarker AI Proctoring**.
+Migrated to **React 18**, **Vite 6**, **Express 5 Node.js Backend**, **MySQL 8 Database**, **JWT Authentication**, **Zod Request Validation**, **MediaPipe Face Landmarker AI Proctoring**, **TensorFlow COCO-SSD Object Detection**, and **Google Gemini 2.0 AI Question Generation**.
 
 ---
 
 ## 🚀 Technical Stack
 
-- **Frontend**: React 18, Vite, React Router DOM v6, Custom CSS Design System (`app.css`), MediaPipe Vision SDK (`@mediapipe/tasks-vision`)
-- **Backend**: Node.js (>=18.0), Express 5, Socket.IO, Cookie-Parser, Compression, CORS, Multer
-- **Database**: MySQL 8 using `mysql2/promise` with connection pooling, prepared statements, and transactions
-- **Authentication**: JWT (JSON Web Tokens) with `bcrypt` password hashing
-- **Validation**: Zod schema validation middleware
-- **AI Question Paper Generator**: Google Gemini 2.0/1.5 Flash (`@google/genai`)
-- **PDF Engine**: PDFKit (result certificates & hall tickets)
+- **Frontend**: React 18, Vite 6, React Router DOM v6, Custom CSS Design System (`app.css`), MediaPipe Vision SDK (`@mediapipe/tasks-vision`), TensorFlow.js (`@tensorflow/tfjs`), COCO-SSD (`@tensorflow-models/coco-ssd`).
+- **Backend**: Node.js (>=18.0), Express 5, Socket.IO, Cookie-Parser, Compression, CORS, Multer, Express-Rate-Limit.
+- **Database**: MySQL 8 using `mysql2/promise` with connection pooling, prepared statements, and transactions.
+- **Authentication**: JWT (JSON Web Tokens) with `bcrypt` password hashing and cookie/header support.
+- **Validation**: Zod schema validation middleware.
+- **AI Question Generator**: Google Gemini 2.0/1.5 Flash (`@google/genai`) with multi-model fallback cascades and exponential backoff retry logic.
+- **PDF Engine**: PDFKit (result certificates, hall tickets, & formal proctoring audit reports).
 
 ---
 
@@ -52,18 +52,19 @@ DNSPostProject/
 │   └── server.js           # Express + Socket.IO entry point
 ├── frontend/                # React + Vite Frontend App
 │   ├── src/
-│   │   ├── components/     # MediaPipeProctor, Navbar, Sidebar, Footer, Toast
+│   │   ├── components/     # MediaPipeProctor, Navbar, Sidebar, Footer, Toast, ErrorBoundary
 │   │   ├── context/        # AuthContext for JWT state
 │   │   ├── css/            # app.css unified design system
-│   │   ├── pages/          # Login, AdminDashboard, StudentDashboard, ExamPage, CreateExam, ResultView, AllResults
+│   │   ├── pages/          # Login, AdminDashboard, StudentDashboard, ExamPage, CreateExam, ResultView, AllResults, AISettings
 │   │   ├── services/       # api.js client with JWT header interceptor
-│   │   ├── utils/          # Theme manager
 │   │   ├── App.jsx         # React Router v6 setup
 │   │   └── main.jsx        # Vite entry point
 │   ├── index.html
 │   └── vite.config.js
 ├── database/
-│   └── database.sql        # MySQL 8 DDL DML DCL seed script
+│   ├── database.sql        # MySQL 8 DDL DML seed script
+│   ├── schema.sql
+│   └── init_db.js
 ├── docs/
 │   └── README.md
 ├── .env.example
@@ -90,22 +91,23 @@ DNSPostProject/
    ```
 
 3. **Environment Configuration**:
-   Update `.env` with your MySQL and JWT configuration:
+   Update `.env` with your MySQL, JWT, and Gemini API configuration:
    ```env
-   PORT=3000
+   PORT=5000
    DB_HOST=localhost
    DB_PORT=3306
    DB_NAME=online_exam_system
    DB_USER=root
    DB_PASSWORD=your_password
    JWT_SECRET=your_jwt_secret_key
+   GEMINI_API_KEY=your_gemini_api_key
    ```
 
 4. **Running the System**:
    ```bash
-   # Run Express Backend
+   # Run Express Backend (Terminal 1)
    npm run dev:backend
 
-   # Run React Vite Frontend (in separate terminal)
+   # Run React Vite Frontend (Terminal 2)
    npm run dev:frontend
    ```

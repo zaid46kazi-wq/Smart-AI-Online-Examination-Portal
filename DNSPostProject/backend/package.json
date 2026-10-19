@@ -7,7 +7,8 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "dev:backend": "node --watch server.js",
-    "test": "node -e \"console.log('Backend tests OK')\""
+    "health": "node -e \"fetch('http://localhost:5000/api/health').then(r=>r.text()).then(console.log)\"",
+    "test": "node --test tests/integration.test.js"
   },
   "dependencies": {
     "@google/genai": "^1.46.0",

@@ -80,7 +80,8 @@ const examModel = {
                 INSERT INTO exams (name, subject_id, total_questions, total_marks, time_limit, exam_date, start_time, end_time, exam_status) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
-            const dateVal = exam_date || new Date().toISOString().split('T')[0];
+            const now = new Date();
+            const dateVal = exam_date || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             const sTime = start_time || '00:00';
             const eTime = end_time || '23:59';
             const statusVal = exam_status || 'published';

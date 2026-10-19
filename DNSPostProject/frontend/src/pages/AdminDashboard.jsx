@@ -1,18 +1,89 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { showToast } from '../components/Toast';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
+import { AppLayout } from '../components/ui/AppLayout';
+import { PageHeader } from '../components/ui/PageHeader';
+import { StatCard } from '../components/ui/StatCard';
+import { Card } from '../components/ui/Card';
+import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
+import { Input } from '../components/ui/Input';
+import { Select } from '../components/ui/Select';
+import { EmptyState } from '../components/ui/EmptyState';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
+import {
+    Users,
+    ClipboardList,
+    TrendingUp,
+    BookOpen,
+    Plus,
+    Trash2,
+    Upload,
+    Video,
+    ShieldAlert,
+    AlertTriangle,
+    Search,
+    CheckCircle2,
+    Calendar,
+    GraduationCap,
+    Clock,
+    FileText,
+    Shield,
+    Sparkles,
+    Eye,
+    ChevronRight,
+    ArrowUpRight,
+    Award,
+    ShieldCheck
+} from 'lucide-react';
+
+const formatIncidentDetails = (inc) => {
+    if (!inc) return 'Security threshold exceeded';
+
+    let details = inc.details;
+    if (typeof details === 'string') {
+        try {
+            details = JSON.parse(details);
+        } catch {
+            return details || inc.message || 'Security threshold exceeded';
+        }
+    }
+
+    if (details && typeof details === 'object') {
+        const msg = details.message || inc.message || details.detail || details.description;
+        const count = details.warning_count ?? inc.warning_count;
+        if (msg) {
+            return count !== undefined && count !== null
+                ? `${msg} (Warning #${count})`
+                : msg;
+        }
+        try {
+            return JSON.stringify(details);
+        } catch {
+            return 'Security threshold exceeded';
+        }
+    }
+
+    return inc.message || 'Security threshold exceeded';
+};
 
 export function AdminDashboard() {
-    const { user, logout } = useAuth();
+    const { user } = useAuth();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const currentTab = searchParams.get('tab') || 'overview';
 
+    const [loading, setLoading] = useState(true);
     const [analytics, setAnalytics] = useState({ totalStudents: 0, totalExams: 0, avgScore: 0, totalResults: 0 });
     const [exams, setExams] = useState([]);
     const [students, setStudents] = useState([]);
     const [subjects, setSubjects] = useState([]);
 
+    // Forms
     const [subjectName, setSubjectName] = useState('');
     const [subjectCode, setSubjectCode] = useState('');
 
@@ -22,69 +93,90 @@ export function AdminDashboard() {
     const [studentUsername, setStudentUsername] = useState('');
     const [studentPassword, setStudentPassword] = useState('pass123');
     const [studentFile, setStudentFile] = useState(null);
+    const [studentModalTab, setStudentModalTab] = useState('single'); // 'single' | 'csv'
 
-    const [modalActive, setModalActive] = useState(false);
-    const [settingsModalActive, setSettingsModalActive] = useState(false);
+    // Filter/Search states
+    const [searchStudent, setSearchStudent] = useState('');
+    const [searchExam, setSearchExam] = useState('');
+    const [searchSubject, setSearchSubject] = useState('');
+
+    // Modals
+    const [incidentsModal, setIncidentsModal] = useState(false);
     const [incidents, setIncidents] = useState([]);
+    const [activeExamTitle, setActiveExamTitle] = useState('');
+    const [incidentsLoading, setIncidentsLoading] = useState(false);
 
-    const [aiSettings, setAiSettings] = useState({
-        max_warnings: 3,
-        auto_submit_enabled: 1,
-        face_timeout_seconds: 5,
-        head_yaw_threshold_deg: 22,
-        head_pitch_threshold_deg: 18,
-        eye_gaze_threshold: 0.12,
-        phone_confidence_threshold: 0.50
+    const [addStudentModal, setAddStudentModal] = useState(false);
+    const [addSubjectModal, setAddSubjectModal] = useState(false);
+
+    // Confirm dialog state
+    const [confirmDialog, setConfirmDialog] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: null,
+        confirmVariant: 'danger',
+        loading: false
     });
 
     const loadData = async () => {
+        setLoading(true);
         try {
-            const [a, e, sub, st, setts] = await Promise.all([
+            const [a, e, sub, st] = await Promise.all([
                 apiFetch('/api/analytics').catch(() => ({ totalStudents: 0, totalExams: 0, avgScore: 0, totalResults: 0 })),
                 apiFetch('/api/exams').catch(() => []),
                 apiFetch('/api/subjects').catch(() => []),
                 apiFetch('/api/students').catch(() => []),
-                apiFetch('/api/proctor/settings').catch(() => ({}))
             ]);
             setAnalytics(a || { totalStudents: 0, totalExams: 0, avgScore: 0, totalResults: 0 });
             setExams(Array.isArray(e) ? e : []);
             setSubjects(Array.isArray(sub) ? sub : []);
             setStudents(Array.isArray(st) ? st : []);
-            if (setts && typeof setts === 'object' && Object.keys(setts).length > 0) {
-                setAiSettings(prev => ({ ...prev, ...setts }));
-            }
         } catch (err) {
-            console.error('Load data error:', err);
+            console.error('Admin load error:', err);
+        } finally {
+            setLoading(false);
         }
     };
 
     useEffect(() => { loadData(); }, []);
 
-    const addSubject = async () => {
-        if (!subjectName.trim()) { showToast('Enter subject name', 'warning'); return; }
+    const addSubject = async (e) => {
+        if (e) e.preventDefault();
+        if (!subjectName.trim()) { showToast('Please enter subject name', 'warning'); return; }
         try {
             await apiFetch('/api/subjects', {
                 method: 'POST',
                 body: JSON.stringify({ subject_name: subjectName, subject_code: subjectCode })
             });
-            showToast('Subject added successfully', 'success');
+            showToast('Subject created successfully', 'success');
             setSubjectName(''); setSubjectCode('');
+            setAddSubjectModal(false);
             loadData();
         } catch (err) { showToast(err.message, 'error'); }
     };
 
-    const deleteSubject = async (id) => {
-        if (!confirm('Delete this subject?')) return;
-        try {
-            await apiFetch(`/api/subjects/${id}`, { method: 'DELETE' });
-            showToast('Subject deleted', 'success');
-            loadData();
-        } catch (err) { showToast(err.message, 'error'); }
+    const confirmDeleteSubject = (id, name) => {
+        setConfirmDialog({
+            isOpen: true,
+            title: 'Remove Academic Subject',
+            message: `Are you sure you want to delete "${name}"? Any connected examinations may be affected.`,
+            confirmVariant: 'danger',
+            onConfirm: async () => {
+                try {
+                    await apiFetch(`/api/subjects/${id}`, { method: 'DELETE' });
+                    showToast('Subject removed', 'success');
+                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                    loadData();
+                } catch (err) { showToast(err.message, 'error'); }
+            }
+        });
     };
 
-    const addStudent = async () => {
-        if (!studentUsername.trim()) { showToast('Enter username', 'warning'); return; }
-        if (!studentPassword.trim()) { showToast('Enter password', 'warning'); return; }
+    const addStudent = async (e) => {
+        if (e) e.preventDefault();
+        if (!studentUsername.trim()) { showToast('Username is required', 'warning'); return; }
+        if (!studentPassword.trim()) { showToast('Password is required', 'warning'); return; }
         try {
             await apiFetch('/api/students', {
                 method: 'POST',
@@ -93,316 +185,877 @@ export function AdminDashboard() {
                     username: studentUsername, password: studentPassword
                 })
             });
-            showToast('Student added successfully', 'success');
+            showToast('Student enrolled successfully', 'success');
             setStudentName(''); setStudentUsn(''); setStudentEmail(''); setStudentUsername('');
+            setAddStudentModal(false);
             loadData();
         } catch (err) { showToast(err.message, 'error'); }
     };
 
-    const importStudents = async () => {
-        if (!studentFile) { showToast('Select an Excel file first', 'warning'); return; }
+    const importStudents = async (e) => {
+        if (e) e.preventDefault();
+        if (!studentFile) { showToast('Please select a valid CSV or Excel file', 'warning'); return; }
         const form = new FormData();
         form.append('file', studentFile);
         try {
             const data = await apiFetch('/api/students/import', { method: 'POST', body: form });
-            showToast(`Imported ${data.inserted || 0} students successfully!`, 'success');
+            showToast(`Imported ${data.inserted || 0} student records successfully`, 'success');
             setStudentFile(null);
+            setAddStudentModal(false);
             loadData();
         } catch (err) { showToast(err.message, 'error'); }
     };
 
-    const deleteStudent = async (id) => {
-        if (!confirm('Are you sure you want to delete this student?')) return;
-        try {
-            await apiFetch(`/api/students/${id}`, { method: 'DELETE' });
-            showToast('Student deleted', 'success');
-            loadData();
-        } catch (err) { showToast(err.message, 'error'); }
+    const confirmDeleteStudent = (id, name) => {
+        setConfirmDialog({
+            isOpen: true,
+            title: 'Delete Student Account',
+            message: `Are you sure you want to delete candidate record for "${name}"? This removes their examination access.`,
+            confirmVariant: 'danger',
+            onConfirm: async () => {
+                try {
+                    await apiFetch(`/api/students/${id}`, { method: 'DELETE' });
+                    showToast('Student record removed', 'success');
+                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                    loadData();
+                } catch (err) { showToast(err.message, 'error'); }
+            }
+        });
     };
 
-    const deleteExam = async (id) => {
-        if (!confirm('Are you sure you want to delete this exam?')) return;
-        try {
-            await apiFetch(`/api/exams/${id}`, { method: 'DELETE' });
-            showToast('Exam deleted successfully', 'success');
-            loadData();
-        } catch (err) { showToast(err.message, 'error'); }
+    const confirmDeleteExam = (id, title) => {
+        setConfirmDialog({
+            isOpen: true,
+            title: 'Delete Examination',
+            message: `Are you sure you want to delete "${title}"? All submitted candidate attempts and questions will be permanently removed.`,
+            confirmVariant: 'danger',
+            onConfirm: async () => {
+                try {
+                    await apiFetch(`/api/exams/${id}`, { method: 'DELETE' });
+                    showToast('Examination deleted', 'success');
+                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                    loadData();
+                } catch (err) { showToast(err.message, 'error'); }
+            }
+        });
     };
 
-    const doFactoryReset = async () => {
-        if (!confirm('EXTREME DANGER: Deletes all data. Proceed?')) return;
+    const viewIncidents = async (examId, examTitle) => {
+        setActiveExamTitle(examTitle || `Exam #${examId}`);
+        setIncidentsModal(true);
+        setIncidentsLoading(true);
         try {
-            await apiFetch('/api/factory-reset', { method: 'POST' });
-            showToast('System reset complete', 'success');
-            loadData();
-        } catch (err) { showToast(err.message, 'error'); }
-    };
-
-    const viewIncidents = async (examId) => {
-        setModalActive(true);
-        try {
-            const data = await apiFetch(`/api/incidents/${examId}`);
+            const data = await apiFetch(`/api/proctor/incidents/${examId}`);
             setIncidents(Array.isArray(data) ? data : []);
         } catch (err) {
             setIncidents([]);
+        } finally {
+            setIncidentsLoading(false);
         }
     };
 
+    // Filter logic
+    const filteredStudents = students.filter(s => {
+        const query = searchStudent.toLowerCase();
+        return (s.name || '').toLowerCase().includes(query) ||
+               (s.usn || '').toLowerCase().includes(query) ||
+               (s.username || '').toLowerCase().includes(query) ||
+               (s.email || '').toLowerCase().includes(query);
+    });
+
+    const filteredExams = exams.filter(e => {
+        const query = searchExam.toLowerCase();
+        return (e.exam_name || e.name || '').toLowerCase().includes(query) ||
+               (e.subjects?.subject_name || '').toLowerCase().includes(query);
+    });
+
+    const filteredSubjects = subjects.filter(sub => {
+        const query = searchSubject.toLowerCase();
+        return (sub.subject_name || '').toLowerCase().includes(query) ||
+               (sub.subject_code || '').toLowerCase().includes(query);
+    });
+
+    // Faculty members list (students table users with Admin role)
+    const facultyList = students.filter(s => (s.role || '').toLowerCase() === 'admin');
+
+    const tabs = [
+        { id: 'overview', label: 'Command Overview', icon: LayoutDashboardIcon },
+        { id: 'exams', label: 'Examinations', icon: ClipboardList, count: exams.length },
+        { id: 'students', label: 'Students Roster', icon: Users, count: students.length },
+        { id: 'faculty', label: 'Faculty Directory', icon: GraduationCap, count: facultyList.length },
+        { id: 'subjects', label: 'Subjects Catalog', icon: BookOpen, count: subjects.length },
+    ];
+
+    function LayoutDashboardIcon(props) {
+        return <ClipboardList {...props} />;
+    }
+
     return (
-        <div className="bg-surface min-h-screen flex flex-col font-body">
-            <header className="w-full bg-primary text-on-primary py-3 px-6 text-center shadow-lg relative z-10">
-                <h1 className="text-lg font-bold font-headline tracking-tight">AGMR College of Engineering</h1>
-                <p className="text-xs opacity-80">Online Examination System — Instructor Panel</p>
-            </header>
-
-            <nav className="sticky top-0 z-40 bg-surface-container-lowest/90 backdrop-blur-xl border-b border-outline-variant/10 px-6 py-3 flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                    <h2 className="text-lg font-bold font-headline text-primary">Instructor Panel</h2>
-                </div>
-                <div className="flex items-center gap-4">
-                    <span className="text-sm font-bold text-on-surface-variant">Welcome, {user?.username || 'Instructor'}</span>
-                    <button onClick={logout} className="px-3 py-1.5 rounded-lg text-xs font-bold text-error bg-error-container/10 hover:bg-error-container/20 transition-all flex items-center gap-1">
-                        <span className="material-symbols-outlined text-sm">logout</span> Logout
-                    </button>
-                </div>
-            </nav>
-
-            <div className="flex flex-1">
-                <aside className="w-64 bg-surface-container-lowest border-r border-outline-variant/10 flex flex-col p-4 space-y-2">
-                    <div className="px-3 py-2 mb-4">
-                        <h3 className="text-xs font-bold text-outline uppercase tracking-widest">Instructor Portal</h3>
-                        <p className="text-sm font-bold text-on-surface">AGMR College</p>
+        <AppLayout activeTab={currentTab} onTabChange={(t) => setSearchParams({ tab: t })}>
+            {/* 1. Page Header */}
+            <PageHeader
+                title="Examination Command Center"
+                description="Comprehensive academic administration for autonomous examinations, student credentials, subject syllabi, and live AI security."
+                action={
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={Plus}
+                            onClick={() => setAddSubjectModal(true)}
+                        >
+                            Add Subject
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={Plus}
+                            onClick={() => setAddStudentModal(true)}
+                        >
+                            Enroll Student
+                        </Button>
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            icon={Plus}
+                            onClick={() => navigate('/create-exam')}
+                        >
+                            Create Exam
+                        </Button>
                     </div>
+                }
+            />
 
-                    <Link to="/admin" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold bg-primary text-on-primary shadow-sm">
-                        <span className="material-symbols-outlined text-xl">dashboard</span> Overview
-                    </Link>
-                    <Link to="/create-exam" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-all">
-                        <span className="material-symbols-outlined text-xl">add_circle</span> Create Exam
-                    </Link>
-                    <Link to="/results" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-all">
-                        <span className="material-symbols-outlined text-xl">analytics</span> View Results
-                    </Link>
-
-                    <Link to="/ai-settings" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-all">
-                        <span className="material-symbols-outlined text-xl">settings_suggest</span> AI Security Settings
-                    </Link>
-
-                    <div className="mt-auto pt-6 border-t border-outline-variant/10">
-                        <Link to="/create-exam" className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold text-sm hover:bg-primary-dim transition-all shadow-md flex items-center justify-center gap-2">
-                            <span className="material-symbols-outlined text-lg">add</span> New Assessment
-                        </Link>
-                    </div>
-                </aside>
-
-                <main className="flex-1 p-8 space-y-8 overflow-y-auto">
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <h1 className="text-2xl font-bold font-headline text-on-surface">Instructor Command Center</h1>
-                            <p className="text-sm text-on-surface-variant mt-1">Manage assessments, student rosters, subjects, and view security incidents.</p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant/10 shadow-sm relative overflow-hidden">
-                            <span className="material-symbols-outlined absolute top-4 right-4 text-primary opacity-20 text-4xl">groups</span>
-                            <p className="text-xs font-bold text-outline uppercase tracking-widest">Registered Students</p>
-                            <h3 className="text-3xl font-extrabold font-headline text-on-surface mt-2">{analytics.totalStudents || 0}</h3>
-                            <p className="text-xs text-on-surface-variant mt-1">Active student accounts</p>
-                        </div>
-                        <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant/10 shadow-sm relative overflow-hidden">
-                            <span className="material-symbols-outlined absolute top-4 right-4 text-primary opacity-20 text-4xl">assignment</span>
-                            <p className="text-xs font-bold text-outline uppercase tracking-widest">Total Exams</p>
-                            <h3 className="text-3xl font-extrabold font-headline text-on-surface mt-2">{analytics.totalExams || 0}</h3>
-                            <p className="text-xs text-on-surface-variant mt-1">Assessments in system</p>
-                        </div>
-                        <div className="bg-gradient-to-br from-primary to-primary-container p-6 rounded-2xl text-on-primary shadow-lg relative overflow-hidden">
-                            <span className="material-symbols-outlined absolute top-4 right-4 text-white opacity-30 text-4xl">stars</span>
-                            <p className="text-xs font-bold opacity-80 uppercase tracking-widest">Average Score</p>
-                            <h3 className="text-3xl font-extrabold font-headline mt-2">{analytics.avgScore || 0}%</h3>
-                            <p className="text-xs opacity-80 mt-1">Total submissions: {analytics.totalResults || 0}</p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                        {/* Forms Column */}
-                        <div className="lg:col-span-4 space-y-6">
-                            {/* Add Subject Card */}
-                            <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant/10 shadow-sm space-y-4">
-                                <h3 className="text-sm font-bold text-on-surface uppercase tracking-wider">Add Subject</h3>
-                                <div className="space-y-3">
-                                    <input type="text" value={subjectName} onChange={e => setSubjectName(e.target.value)} placeholder="Subject Name" className="w-full bg-surface-container-high border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary" />
-                                    <input type="text" value={subjectCode} onChange={e => setSubjectCode(e.target.value)} placeholder="Subject Code" className="w-full bg-surface-container-high border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary" />
-                                    <button onClick={addSubject} className="w-full bg-primary text-on-primary py-2.5 rounded-xl font-bold text-sm hover:bg-primary-dim transition-all">Save Subject</button>
-                                </div>
-                            </div>
-
-                            {/* Add Student Card */}
-                            <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant/10 shadow-sm space-y-4">
-                                <h3 className="text-sm font-bold text-on-surface uppercase tracking-wider">Add Student</h3>
-                                <div className="space-y-3">
-                                    <input type="text" value={studentName} onChange={e => setStudentName(e.target.value)} placeholder="Full Name" className="w-full bg-surface-container-high border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary" />
-                                    <input type="text" value={studentUsn} onChange={e => setStudentUsn(e.target.value)} placeholder="USN" className="w-full bg-surface-container-high border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary" />
-                                    <input type="email" value={studentEmail} onChange={e => setStudentEmail(e.target.value)} placeholder="Email" className="w-full bg-surface-container-high border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary" />
-                                    <input type="text" value={studentUsername} onChange={e => setStudentUsername(e.target.value)} placeholder="Username" className="w-full bg-surface-container-high border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary" />
-                                    <input type="password" value={studentPassword} onChange={e => setStudentPassword(e.target.value)} placeholder="Password" className="w-full bg-surface-container-high border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary" />
-                                    <button onClick={addStudent} className="w-full bg-primary text-on-primary py-2.5 rounded-xl font-bold text-sm hover:bg-primary-dim transition-all">Save Student</button>
-
-                                    <div className="pt-3 border-t border-outline-variant/10 space-y-2">
-                                        <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider">Import Excel Roster</label>
-                                        <input type="file" onChange={e => setStudentFile(e.target.files[0])} accept=".xlsx,.xls" className="w-full text-xs text-on-surface-variant file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-secondary-container file:text-primary hover:file:bg-primary hover:file:text-white transition-all cursor-pointer" />
-                                        <button onClick={importStudents} className="w-full bg-secondary-container text-primary py-2 rounded-xl font-bold text-xs hover:bg-primary hover:text-white transition-all">Import File</button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Danger Zone */}
-                            <div className="bg-error-container/10 border border-error/20 p-6 rounded-2xl space-y-3">
-                                <div className="flex items-center gap-2 text-error font-bold text-xs uppercase tracking-wider">
-                                    <span className="material-symbols-outlined text-sm">warning</span> Danger Zone
-                                </div>
-                                <p className="text-xs text-on-surface-variant">Reset all database tables to factory defaults.</p>
-                                <button onClick={doFactoryReset} className="w-full bg-error text-white py-2.5 rounded-xl font-bold text-xs hover:bg-error/90 transition-all">Factory Reset</button>
-                            </div>
-                        </div>
-
-                        {/* Tables Column */}
-                        <div className="lg:col-span-8 space-y-6">
-                            {/* All Exams Card */}
-                            <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant/10 shadow-sm space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <h3 className="text-sm font-bold text-on-surface uppercase tracking-wider">All Exams</h3>
-                                    <Link to="/create-exam" className="bg-primary text-on-primary px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-primary-dim transition-all">+ Create Exam</Link>
-                                </div>
-                                <div className="overflow-x-auto max-h-72">
-                                    <table className="w-full text-left text-sm">
-                                        <thead>
-                                            <tr className="border-b border-outline-variant/10 text-xs text-outline font-bold uppercase">
-                                                <th className="py-2 px-3">ID</th><th className="py-2 px-3">Title</th><th className="py-2 px-3">Subject</th><th className="py-2 px-3">Questions</th><th className="py-2 px-3 text-right">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-outline-variant/10">
-                                            {exams.length === 0 ? (
-                                                <tr><td colSpan="5" className="py-6 text-center text-outline">No exams created yet</td></tr>
-                                            ) : (
-                                                exams.map(e => (
-                                                    <tr key={e.id} className="hover:bg-surface-container-low transition-all">
-                                                        <td className="py-3 px-3 font-bold text-outline">{e.id}</td>
-                                                        <td className="py-3 px-3 font-bold text-on-surface">{e.exam_name || e.name}</td>
-                                                        <td className="py-3 px-3"><span className="bg-secondary-container text-primary text-xs font-bold px-2.5 py-1 rounded-full">{e.subjects?.subject_name || 'General'}</span></td>
-                                                        <td className="py-3 px-3">{e.total_questions}</td>
-                                                        <td className="py-3 px-3 text-right space-x-1">
-                                                            <button onClick={() => viewIncidents(e.id)} className="p-1 text-warning hover:bg-warning/10 rounded-lg" title="View Incidents"><span className="material-symbols-outlined text-sm">videocam</span></button>
-                                                            <button onClick={() => deleteExam(e.id)} className="p-1 text-error hover:bg-error/10 rounded-lg" title="Delete"><span className="material-symbols-outlined text-sm">delete</span></button>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            {/* Registered Students Table */}
-                            <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant/10 shadow-sm space-y-4">
-                                <h3 className="text-sm font-bold text-on-surface uppercase tracking-wider">Registered Students</h3>
-                                <div className="overflow-x-auto max-h-64">
-                                    <table className="w-full text-left text-sm">
-                                        <thead>
-                                            <tr className="border-b border-outline-variant/10 text-xs text-outline font-bold uppercase">
-                                                <th className="py-2 px-3">ID</th><th className="py-2 px-3">Username</th><th className="py-2 px-3">Name</th><th className="py-2 px-3">USN</th><th className="py-2 px-3 text-right">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-outline-variant/10">
-                                            {students.length === 0 ? (
-                                                <tr><td colSpan="5" className="py-6 text-center text-outline">No student records</td></tr>
-                                            ) : (
-                                                students.map(s => (
-                                                    <tr key={s.id} className="hover:bg-surface-container-low transition-all">
-                                                        <td className="py-3 px-3 font-bold text-outline">{s.id}</td>
-                                                        <td className="py-3 px-3 font-bold text-on-surface">{s.username}</td>
-                                                        <td className="py-3 px-3">{s.name || '-'}</td>
-                                                        <td className="py-3 px-3"><span className="bg-secondary-container text-primary text-xs font-bold px-2 py-0.5 rounded-full">{s.usn || '-'}</span></td>
-                                                        <td className="py-3 px-3 text-right">
-                                                            <button onClick={() => deleteStudent(s.id)} className="p-1 text-error hover:bg-error/10 rounded-lg"><span className="material-symbols-outlined text-sm">person_remove</span></button>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            {/* Subjects Table */}
-                            <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant/10 shadow-sm space-y-4">
-                                <h3 className="text-sm font-bold text-on-surface uppercase tracking-wider">Subjects</h3>
-                                <div className="overflow-x-auto max-h-48">
-                                    <table className="w-full text-left text-sm">
-                                        <thead>
-                                            <tr className="border-b border-outline-variant/10 text-xs text-outline font-bold uppercase">
-                                                <th className="py-2 px-3">ID</th><th className="py-2 px-3">Subject Name</th><th className="py-2 px-3">Code</th><th className="py-2 px-3 text-right">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-outline-variant/10">
-                                            {subjects.length === 0 ? (
-                                                <tr><td colSpan="4" className="py-6 text-center text-outline">No subjects added</td></tr>
-                                            ) : (
-                                                subjects.map(sub => (
-                                                    <tr key={sub.id} className="hover:bg-surface-container-low transition-all">
-                                                        <td className="py-3 px-3 font-bold text-outline">{sub.id}</td>
-                                                        <td className="py-3 px-3 font-bold text-on-surface">{sub.subject_name}</td>
-                                                        <td className="py-3 px-3"><span className="bg-secondary-container text-primary text-xs font-bold px-2 py-0.5 rounded-full">{sub.subject_code || '-'}</span></td>
-                                                        <td className="py-3 px-3 text-right">
-                                                            <button onClick={() => deleteSubject(sub.id)} className="p-1 text-error hover:bg-error/10 rounded-lg"><span className="material-symbols-outlined text-sm">delete</span></button>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </main>
+            {/* 2. Key Metrics Overview (Stripe/Linear Style) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <StatCard
+                    label="Registered Students"
+                    value={analytics.totalStudents || students.length || 0}
+                    description="Active enrolled candidates"
+                    icon={Users}
+                    badgeText="Active"
+                    badgeColor="blue"
+                />
+                <StatCard
+                    label="Active Examinations"
+                    value={exams.length}
+                    description={`${subjects.length} academic subjects`}
+                    icon={ClipboardList}
+                    badgeText="Published"
+                    badgeColor="green"
+                />
+                <StatCard
+                    label="Class Average Score"
+                    value={`${analytics.avgScore || 0}%`}
+                    description={`${analytics.totalResults || 0} attempts evaluated`}
+                    icon={TrendingUp}
+                    badgeText="Mean"
+                    badgeColor="amber"
+                />
+                <StatCard
+                    label="Curriculum Subjects"
+                    value={subjects.length}
+                    description="Autonomous course codes"
+                    icon={BookOpen}
+                    badgeText="Catalog"
+                    badgeColor="blue"
+                />
             </div>
 
-            {/* Incidents Modal */}
-            {modalActive && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-surface-container-lowest rounded-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
-                        <div className="p-4 border-b border-outline-variant/10 flex justify-between items-center">
-                            <div className="flex items-center gap-2 text-error font-bold text-sm">
-                                <span className="material-symbols-outlined">policy</span> Security Incidents Log
-                            </div>
-                            <button onClick={() => setModalActive(false)} className="p-1 hover:bg-surface-container rounded-lg"><span className="material-symbols-outlined">close</span></button>
-                        </div>
-                        <div className="p-6 overflow-y-auto max-h-[70vh]">
+            {/* 3. Segmented Tab Navigation */}
+            <div className="flex border-b border-slate-200 mb-6 overflow-x-auto gap-2">
+                {tabs.map((tab) => {
+                    const active = currentTab === tab.id;
+                    const Icon = tab.icon;
+                    return (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setSearchParams({ tab: tab.id })}
+                            className={`flex items-center gap-2 py-2.5 px-3.5 border-b-2 text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                                active
+                                    ? 'border-blue-600 text-blue-600 font-bold'
+                                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
+                            }`}
+                        >
+                            <Icon size={15} />
+                            <span>{tab.label}</span>
+                            {tab.count !== undefined && (
+                                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                                    active ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
+                                }`}>
+                                    {tab.count}
+                                </span>
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* 4. Tab Content Panels */}
+            {loading ? (
+                <LoadingSkeleton variant="table" rows={5} />
+            ) : (
+                <div className="space-y-6">
+                    {/* ──────────────────────────────────────────────────────────── */}
+                    {/* TAB: OVERVIEW */}
+                    {/* ──────────────────────────────────────────────────────────── */}
+                    {currentTab === 'overview' && (
+                        <div className="space-y-6">
+                            {/* Quick Navigation Cards */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {incidents.length === 0 ? (
-                                    <div className="col-span-full text-center py-12 text-outline">No security incidents reported for this exam! ✅</div>
+                                <div
+                                    onClick={() => navigate('/create-exam')}
+                                    className="p-5 rounded-xl bg-white border border-slate-200 shadow-2xs hover:shadow-xs hover:border-blue-300 transition-all cursor-pointer group flex items-start justify-between"
+                                >
+                                    <div className="space-y-1">
+                                        <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-2">
+                                            <FileText size={18} />
+                                        </div>
+                                        <h4 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                                            Question Authoring & AI Generation
+                                        </h4>
+                                        <p className="text-xs text-slate-500">
+                                            Create questions manually or upload module notes for Gemini AI question drafting.
+                                        </p>
+                                    </div>
+                                    <ArrowUpRight size={16} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
+                                </div>
+
+                                <div
+                                    onClick={() => navigate('/ai-evaluation')}
+                                    className="p-5 rounded-xl bg-white border border-slate-200 shadow-2xs hover:shadow-xs hover:border-blue-300 transition-all cursor-pointer group flex items-start justify-between"
+                                >
+                                    <div className="space-y-1">
+                                        <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
+                                            <Award size={18} />
+                                        </div>
+                                        <h4 className="text-sm font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
+                                            AI Answer Booklet Evaluation
+                                        </h4>
+                                        <p className="text-xs text-slate-500">
+                                            Upload question papers, valuation schemes, and student handwritten booklets for AI evaluation.
+                                        </p>
+                                    </div>
+                                    <ArrowUpRight size={16} className="text-slate-400 group-hover:text-emerald-600 transition-colors" />
+                                </div>
+
+                                <div
+                                    onClick={() => navigate('/results')}
+                                    className="p-5 rounded-xl bg-white border border-slate-200 shadow-2xs hover:shadow-xs hover:border-blue-300 transition-all cursor-pointer group flex items-start justify-between"
+                                >
+                                    <div className="space-y-1">
+                                        <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2">
+                                            <ClipboardList size={18} />
+                                        </div>
+                                        <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                            Official Results & Grade Ledger
+                                        </h4>
+                                        <p className="text-xs text-slate-500">
+                                            Inspect finalized student scorecards, percentage calculations, and download certificates.
+                                        </p>
+                                    </div>
+                                    <ArrowUpRight size={16} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                                </div>
+                            </div>
+
+                            {/* Recent Examinations Summary Table */}
+                            <Card
+                                title="Scheduled Examinations Summary"
+                                subtitle="Overview of currently deployed assessments and question totals"
+                                action={
+                                    <Button size="sm" variant="secondary" onClick={() => setSearchParams({ tab: 'exams' })}>
+                                        View All ({exams.length})
+                                    </Button>
+                                }
+                            >
+                                {exams.length === 0 ? (
+                                    <EmptyState
+                                        title="No examinations created yet"
+                                        description="Start by creating an examination and assigning subject questions."
+                                        action={<Button size="sm" onClick={() => navigate('/create-exam')}>Create Examination</Button>}
+                                    />
                                 ) : (
-                                    incidents.map(inc => (
-                                        <div key={inc.id} className="border border-outline-variant/10 rounded-xl overflow-hidden bg-surface-container-low">
-                                            {inc.image_url ? (
-                                                <img src={inc.image_url} alt="Snapshot" className="w-full h-32 object-cover" />
-                                            ) : (
-                                                <div className="w-full h-32 flex items-center justify-center text-outline text-xs bg-surface-container-high">No Image Snapshot</div>
-                                            )}
-                                            <div className="p-3 space-y-1">
-                                                <span className="bg-error/10 text-error font-bold text-[10px] uppercase px-2 py-0.5 rounded-full">{inc.type?.replace('_', ' ')}</span>
-                                                <p className="font-bold text-xs text-on-surface">{inc.students?.name || inc.user_id}</p>
-                                                <p className="text-[10px] text-outline">USN: {inc.students?.usn || 'N/A'}</p>
+                                    <div className="overflow-x-auto -mx-5 -mb-5">
+                                        <table className="academic-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Exam ID</th>
+                                                    <th>Title</th>
+                                                    <th>Subject</th>
+                                                    <th>Duration</th>
+                                                    <th>Questions</th>
+                                                    <th>Status</th>
+                                                    <th className="text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {exams.slice(0, 5).map(e => (
+                                                    <tr key={e.id}>
+                                                        <td className="font-mono text-xs font-semibold text-slate-500">#{e.id}</td>
+                                                        <td className="font-bold text-slate-900">{e.exam_name || e.name}</td>
+                                                        <td>
+                                                            <Badge variant="primary" size="xs">
+                                                                {e.subjects?.subject_name || e.subject_name || 'General'}
+                                                            </Badge>
+                                                        </td>
+                                                        <td>
+                                                            <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                                                                <Clock size={13} className="text-slate-400" />
+                                                                <span>{e.time_limit} mins</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="font-semibold text-slate-800">{e.total_questions || 0} Questions</td>
+                                                        <td>
+                                                            <Badge variant="success" size="xs" dot>Active</Badge>
+                                                        </td>
+                                                        <td className="text-right space-x-1">
+                                                            <button
+                                                                onClick={() => viewIncidents(e.id, e.exam_name || e.name)}
+                                                                className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 cursor-pointer"
+                                                                title="Security & Proctoring Audit"
+                                                            >
+                                                                <Video size={15} />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </Card>
+                        </div>
+                    )}
+
+                    {/* ──────────────────────────────────────────────────────────── */}
+                    {/* TAB: EXAMINATIONS */}
+                    {/* ──────────────────────────────────────────────────────────── */}
+                    {currentTab === 'exams' && (
+                        <Card
+                            title={`Examinations Catalog (${filteredExams.length})`}
+                            subtitle="Manage scheduled assessments, time limits, question assignments, and integrity records"
+                            action={
+                                <div className="flex items-center gap-2">
+                                    <div className="relative">
+                                        <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search examinations..."
+                                            value={searchExam}
+                                            onChange={e => setSearchExam(e.target.value)}
+                                            className="pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg w-52 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    <Button size="sm" icon={Plus} onClick={() => navigate('/create-exam')}>
+                                        New Exam
+                                    </Button>
+                                </div>
+                            }
+                        >
+                            {filteredExams.length === 0 ? (
+                                <EmptyState
+                                    title="No examinations match your filter"
+                                    description="Create an examination to assign it to students."
+                                    action={<Button size="sm" onClick={() => navigate('/create-exam')}>Create Examination</Button>}
+                                />
+                            ) : (
+                                <div className="overflow-x-auto -mx-5 -mb-5">
+                                    <table className="academic-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Examination Title</th>
+                                                <th>Subject</th>
+                                                <th>Duration</th>
+                                                <th>Questions</th>
+                                                <th>Status</th>
+                                                <th className="text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredExams.map(e => (
+                                                <tr key={e.id}>
+                                                    <td className="font-mono text-slate-400 text-xs font-semibold">#{e.id}</td>
+                                                    <td className="font-bold text-slate-900">{e.exam_name || e.name}</td>
+                                                    <td>
+                                                        <Badge variant="primary" size="xs">
+                                                            {e.subjects?.subject_name || e.subject_name || 'General'}
+                                                        </Badge>
+                                                    </td>
+                                                    <td>
+                                                        <div className="flex items-center gap-1.5 text-slate-600 text-xs">
+                                                            <Clock size={13} className="text-slate-400" />
+                                                            <span>{e.time_limit} mins</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="font-semibold text-slate-800">{e.total_questions || 0} Questions</td>
+                                                    <td>
+                                                        <Badge variant="success" size="xs" dot>Published</Badge>
+                                                    </td>
+                                                    <td className="text-right space-x-1">
+                                                        <button
+                                                            onClick={() => viewIncidents(e.id, e.exam_name || e.name)}
+                                                            className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 cursor-pointer transition-colors"
+                                                            title="Inspect Proctoring Incidents"
+                                                        >
+                                                            <Video size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => confirmDeleteExam(e.id, e.exam_name || e.name)}
+                                                            className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 cursor-pointer transition-colors"
+                                                            title="Delete Examination"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </Card>
+                    )}
+
+                    {/* ──────────────────────────────────────────────────────────── */}
+                    {/* TAB: STUDENTS */}
+                    {/* ──────────────────────────────────────────────────────────── */}
+                    {currentTab === 'students' && (
+                        <Card
+                            title={`Enrolled Students Roster (${filteredStudents.length})`}
+                            subtitle="Manage registered student credentials, USN mappings, and portal clearance"
+                            action={
+                                <div className="flex items-center gap-2">
+                                    <div className="relative">
+                                        <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search student or USN..."
+                                            value={searchStudent}
+                                            onChange={e => setSearchStudent(e.target.value)}
+                                            className="pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg w-52 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    <Button
+                                        size="sm"
+                                        variant="primary"
+                                        icon={Plus}
+                                        onClick={() => setAddStudentModal(true)}
+                                    >
+                                        Enroll Student
+                                    </Button>
+                                </div>
+                            }
+                        >
+                            {filteredStudents.length === 0 ? (
+                                <EmptyState
+                                    title="No student records found"
+                                    description="Enroll students individually or import an Excel/CSV roster."
+                                    action={<Button size="sm" onClick={() => setAddStudentModal(true)}>Enroll Student</Button>}
+                                />
+                            ) : (
+                                <div className="overflow-x-auto -mx-5 -mb-5">
+                                    <table className="academic-table">
+                                        <thead>
+                                            <tr>
+                                                <th>USN</th>
+                                                <th>Candidate Name</th>
+                                                <th>Username</th>
+                                                <th>Email Address</th>
+                                                <th>Role</th>
+                                                <th className="text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredStudents.map(s => (
+                                                <tr key={s.id}>
+                                                    <td className="font-mono text-xs font-bold text-slate-800">
+                                                        {s.usn || '-'}
+                                                    </td>
+                                                    <td className="font-semibold text-slate-900">
+                                                        {s.name || s.username}
+                                                    </td>
+                                                    <td className="font-mono text-xs text-slate-600">
+                                                        @{s.username}
+                                                    </td>
+                                                    <td className="text-slate-600 text-xs">
+                                                        {s.email || '-'}
+                                                    </td>
+                                                    <td>
+                                                        <Badge variant={s.role === 'Admin' ? 'purple' : 'neutral'} size="xs">
+                                                            {s.role || 'Student'}
+                                                        </Badge>
+                                                    </td>
+                                                    <td className="text-right">
+                                                        <button
+                                                            onClick={() => confirmDeleteStudent(s.id, s.name || s.username)}
+                                                            className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 cursor-pointer transition-colors"
+                                                            title="Remove Student"
+                                                        >
+                                                            <Trash2 size={15} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </Card>
+                    )}
+
+                    {/* ──────────────────────────────────────────────────────────── */}
+                    {/* TAB: FACULTY */}
+                    {/* ──────────────────────────────────────────────────────────── */}
+                    {currentTab === 'faculty' && (
+                        <Card
+                            title={`Faculty & Evaluators Directory (${facultyList.length})`}
+                            subtitle="Authorized academic instructors with assessment authoring and evaluation rights"
+                            action={
+                                <Button size="sm" variant="secondary" icon={Plus} onClick={() => setAddStudentModal(true)}>
+                                    Add Faculty
+                                </Button>
+                            }
+                        >
+                            {facultyList.length === 0 ? (
+                                <EmptyState
+                                    icon={GraduationCap}
+                                    title="No faculty members listed"
+                                    description="Administrators and faculty accounts with role 'Admin' appear here."
+                                />
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {facultyList.map(f => (
+                                        <div
+                                            key={f.id}
+                                            className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-3"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center font-bold text-sm">
+                                                    {f.name?.charAt(0) || f.username?.charAt(0) || 'F'}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h4 className="text-xs font-bold text-slate-900 truncate">
+                                                        {f.name || f.username}
+                                                    </h4>
+                                                    <p className="text-[11px] text-slate-500 font-mono truncate">
+                                                        @{f.username}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600 flex items-center justify-between">
+                                                <span>ID: #{f.id}</span>
+                                                <Badge variant="purple" size="xs">Department Admin</Badge>
                                             </div>
                                         </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                                    ))}
+                                </div>
+                            )}
+                        </Card>
+                    )}
+
+                    {/* ──────────────────────────────────────────────────────────── */}
+                    {/* TAB: SUBJECTS */}
+                    {/* ──────────────────────────────────────────────────────────── */}
+                    {currentTab === 'subjects' && (
+                        <Card
+                            title={`Academic Subjects Catalog (${filteredSubjects.length})`}
+                            subtitle="Curriculum subjects, official course codes, and department syllabus mappings"
+                            action={
+                                <div className="flex items-center gap-2">
+                                    <div className="relative">
+                                        <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search subjects..."
+                                            value={searchSubject}
+                                            onChange={e => setSearchSubject(e.target.value)}
+                                            className="pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg w-52 focus:bg-white focus:outline-hidden"
+                                        />
+                                    </div>
+                                    <Button size="sm" icon={Plus} onClick={() => setAddSubjectModal(true)}>
+                                        Add Subject
+                                    </Button>
+                                </div>
+                            }
+                        >
+                            {filteredSubjects.length === 0 ? (
+                                <EmptyState
+                                    icon={BookOpen}
+                                    title="No academic subjects registered"
+                                    description="Create subject courses to associate them with examinations."
+                                    action={<Button size="sm" onClick={() => setAddSubjectModal(true)}>Add Subject</Button>}
+                                />
+                            ) : (
+                                <div className="overflow-x-auto -mx-5 -mb-5">
+                                    <table className="academic-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Course Code</th>
+                                                <th>Subject Title</th>
+                                                <th>Examinations Assigned</th>
+                                                <th className="text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredSubjects.map(sub => {
+                                                const examCount = exams.filter(e => e.subject_id === sub.id).length;
+                                                return (
+                                                    <tr key={sub.id}>
+                                                        <td className="font-mono text-xs font-bold text-blue-700">
+                                                            {sub.subject_code || 'N/A'}
+                                                        </td>
+                                                        <td className="font-semibold text-slate-900">
+                                                            {sub.subject_name}
+                                                        </td>
+                                                        <td>
+                                                            <span className="text-xs font-medium text-slate-600">
+                                                                {examCount} assessment(s)
+                                                            </span>
+                                                        </td>
+                                                        <td className="text-right">
+                                                            <button
+                                                                onClick={() => confirmDeleteSubject(sub.id, sub.subject_name)}
+                                                                className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 cursor-pointer transition-colors"
+                                                                title="Delete Subject"
+                                                            >
+                                                                <Trash2 size={15} />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </Card>
+                    )}
                 </div>
             )}
-        </div>
+
+            {/* ──────────────────────────────────────────────────────────── */}
+            {/* MODAL: ADD STUDENT (SINGLE FORM OR CSV IMPORT) */}
+            {/* ──────────────────────────────────────────────────────────── */}
+            <Modal
+                isOpen={addStudentModal}
+                onClose={() => setAddStudentModal(false)}
+                title="Enroll Candidate Account"
+                description="Create a single student credential or upload a batch CSV / Excel file"
+                size="md"
+            >
+                <div className="space-y-4">
+                    {/* Segmented Switch for Single vs CSV */}
+                    <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                        <button
+                            type="button"
+                            onClick={() => setStudentModalTab('single')}
+                            className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                                studentModalTab === 'single' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                        >
+                            Single Enrollment
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setStudentModalTab('csv')}
+                            className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                                studentModalTab === 'csv' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                        >
+                            Batch CSV / Excel Import
+                        </button>
+                    </div>
+
+                    {studentModalTab === 'single' ? (
+                        <form onSubmit={addStudent} className="space-y-3.5">
+                            <Input
+                                label="Full Candidate Name"
+                                placeholder="e.g. Rahul Sharma"
+                                value={studentName}
+                                onChange={e => setStudentName(e.target.value)}
+                            />
+                            <div className="grid grid-cols-2 gap-3">
+                                <Input
+                                    label="USN / Roll Number"
+                                    placeholder="e.g. 1AG21CS045"
+                                    value={studentUsn}
+                                    onChange={e => setStudentUsn(e.target.value)}
+                                />
+                                <Input
+                                    label="Username"
+                                    placeholder="e.g. rahul45"
+                                    value={studentUsername}
+                                    onChange={e => setStudentUsername(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Input
+                                    label="Email Address"
+                                    type="email"
+                                    placeholder="rahul@agmr.edu"
+                                    value={studentEmail}
+                                    onChange={e => setStudentEmail(e.target.value)}
+                                />
+                                <Input
+                                    label="Default Password"
+                                    type="password"
+                                    value={studentPassword}
+                                    onChange={e => setStudentPassword(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+                                <Button variant="secondary" size="sm" onClick={() => setAddStudentModal(false)}>
+                                    Cancel
+                                </Button>
+                                <Button type="submit" variant="primary" size="sm" icon={Plus}>
+                                    Save & Enroll
+                                </Button>
+                            </div>
+                        </form>
+                    ) : (
+                        <form onSubmit={importStudents} className="space-y-4">
+                            <div className="p-6 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 text-center space-y-2">
+                                <Upload size={32} className="mx-auto text-blue-600" />
+                                <h4 className="text-xs font-bold text-slate-800">
+                                    Upload Candidate Roster (CSV or Excel)
+                                </h4>
+                                <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
+                                    File must contain columns: <code className="font-mono bg-slate-200 px-1 py-0.5 rounded">username, password, name, usn, email</code>
+                                </p>
+                                <div className="pt-2">
+                                    <input
+                                        type="file"
+                                        id="student-csv"
+                                        accept=".csv,.xlsx,.xls"
+                                        onChange={e => setStudentFile(e.target.files[0] || null)}
+                                        className="hidden"
+                                    />
+                                    <label
+                                        htmlFor="student-csv"
+                                        className="px-3.5 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg shadow-2xs hover:bg-slate-50 cursor-pointer inline-block"
+                                    >
+                                        {studentFile ? studentFile.name : 'Select File'}
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+                                <Button variant="secondary" size="sm" onClick={() => setAddStudentModal(false)}>
+                                    Cancel
+                                </Button>
+                                <Button type="submit" variant="primary" size="sm" disabled={!studentFile} icon={Upload}>
+                                    Upload & Import
+                                </Button>
+                            </div>
+                        </form>
+                    )}
+                </div>
+            </Modal>
+
+            {/* ──────────────────────────────────────────────────────────── */}
+            {/* MODAL: ADD SUBJECT */}
+            {/* ──────────────────────────────────────────────────────────── */}
+            <Modal
+                isOpen={addSubjectModal}
+                onClose={() => setAddSubjectModal(false)}
+                title="Add Academic Subject Course"
+                description="Register a new curriculum course for examination scheduling"
+                size="sm"
+            >
+                <form onSubmit={addSubject} className="space-y-3.5">
+                    <Input
+                        label="Course Title"
+                        placeholder="e.g. Database Management Systems"
+                        value={subjectName}
+                        onChange={e => setSubjectName(e.target.value)}
+                        required
+                    />
+                    <Input
+                        label="Course / Subject Code"
+                        placeholder="e.g. 21CS53"
+                        value={subjectCode}
+                        onChange={e => setSubjectCode(e.target.value)}
+                        required
+                    />
+                    <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+                        <Button variant="secondary" size="sm" onClick={() => setAddSubjectModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" variant="primary" size="sm" icon={Plus}>
+                            Save Subject
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* ──────────────────────────────────────────────────────────── */}
+            {/* MODAL: PROCTORING & SECURITY REVIEW INCIDENTS */}
+            {/* ──────────────────────────────────────────────────────────── */}
+            <Modal
+                isOpen={incidentsModal}
+                onClose={() => setIncidentsModal(false)}
+                title={`Security & Proctoring Audit: ${activeExamTitle}`}
+                description="Logged integrity infractions, face stability warnings, and tab switch telemetry"
+                size="lg"
+            >
+                {incidentsLoading ? (
+                    <div className="py-8 text-center text-xs text-slate-500">
+                        <span className="inline-block w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2" />
+                        Fetching proctoring incident records...
+                    </div>
+                ) : incidents.length === 0 ? (
+                    <EmptyState
+                        icon={ShieldCheck}
+                        title="Zero security infractions logged"
+                        description="All candidates completed this examination with verified face tracking and strict compliance."
+                    />
+                ) : (
+                    <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                        {incidents.map((inc, i) => (
+                            <div
+                                key={i}
+                                className="p-3.5 rounded-xl border border-amber-200/80 bg-amber-50/40 text-xs space-y-1.5"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <AlertTriangle size={15} className="text-amber-600 shrink-0" />
+                                        <span className="font-bold text-slate-900">
+                                            Candidate: {inc.student_name || inc.student_username || `ID #${inc.student_id}`}
+                                        </span>
+                                    </div>
+                                    <Badge variant="warning" size="xs">
+                                        Warning Level: {inc.warning_count || 1}
+                                    </Badge>
+                                </div>
+                                <p className="text-slate-700">
+                                    {formatIncidentDetails(inc)}
+                                </p>
+                                <div className="text-[10px] text-slate-400 font-mono">
+                                    Logged at: {inc.created_at ? new Date(inc.created_at).toLocaleString('en-IN') : 'Session log'}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </Modal>
+
+            {/* ──────────────────────────────────────────────────────────── */}
+            {/* REUSABLE CONFIRM DIALOG */}
+            {/* ──────────────────────────────────────────────────────────── */}
+            <ConfirmDialog
+                isOpen={confirmDialog.isOpen}
+                onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmDialog.onConfirm}
+                title={confirmDialog.title}
+                message={confirmDialog.message}
+                confirmVariant={confirmDialog.confirmVariant}
+                loading={confirmDialog.loading}
+            />
+        </AppLayout>
     );
 }
+
+export default AdminDashboard;

@@ -66,7 +66,7 @@ const proctorModel = {
             const sql = `
                 SELECT w.*, s.name, s.usn, s.username
                 FROM warnings w
-                JOIN students s ON w.user_id = s.id
+                LEFT JOIN students s ON w.user_id = s.id
                 WHERE w.exam_id = ?
                 ORDER BY w.timestamp DESC
             `;

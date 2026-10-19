@@ -22,7 +22,7 @@ const poolConfig = {
     connectionLimit: 10,
     queueLimit: 0,
     dateStrings: true,
-    connectTimeout: 3000
+    connectTimeout: 10000
 };
 
 const pool = mysql.createPool(poolConfig);

@@ -2,11 +2,27 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { showToast } from '../components/Toast';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Badge } from '../components/ui/Badge';
+import {
+    GraduationCap,
+    ShieldCheck,
+    User,
+    Lock,
+    Eye,
+    EyeOff,
+    ArrowRight,
+    Sparkles,
+    Shield,
+    CheckCircle2
+} from 'lucide-react';
 
 export function Login() {
     const [role, setRole] = useState('student');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const { login, loading } = useAuth();
     const navigate = useNavigate();
@@ -16,146 +32,193 @@ export function Login() {
         setError('');
 
         if (!username.trim()) {
-            showToast('Please enter username', 'warning');
+            showToast('Please enter your username or USN', 'warning');
             return;
         }
         if (!password.trim()) {
-            showToast('Please enter password', 'warning');
+            showToast('Please enter your password', 'warning');
             return;
         }
 
         try {
             const data = await login(username, password, role);
-            showToast('Login successful!', 'success');
+            showToast('Authentication successful', 'success');
             if (data.role === 'Admin' || data.role === 'Instructor' || data.role === 'instructor') {
                 navigate('/admin');
             } else {
                 navigate('/student');
             }
         } catch (err) {
-            setError(err.message || 'Invalid credentials');
+            setError(err.message || 'Invalid username or password. Please try again.');
         }
     };
 
+    const handleQuickFill = (u, p, r) => {
+        setUsername(u);
+        setPassword(p);
+        setRole(r);
+        setError('');
+        showToast(`Auto-filled ${r.toUpperCase()} credentials`, 'info');
+    };
+
     return (
-        <div className="bg-surface min-h-screen flex flex-col">
-            {/* Header */}
-            <header className="w-full bg-primary text-on-primary py-3 px-6 text-center shadow-lg relative z-10">
-                <h1 className="text-lg font-bold font-headline tracking-tight">AGMR College of Engineering</h1>
-                <p className="text-xs opacity-80">Online Examination System</p>
+        <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans text-slate-900 justify-between">
+            {/* 1. Institutional Top Bar */}
+            <header className="w-full bg-white/95 backdrop-blur-xs border-b border-slate-200 py-3.5 px-6 shadow-2xs">
+                <div className="max-w-6xl mx-auto flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                            AG
+                        </div>
+                        <div>
+                            <h1 className="text-sm font-bold text-slate-900 leading-tight flex items-center gap-2">
+                                <span>AGMR College of Engineering</span>
+                                <Badge variant="primary" size="xs">Autonomous</Badge>
+                            </h1>
+                            <p className="text-[11px] text-slate-500 font-medium">
+                                Department of Computer Science & Engineering
+                            </p>
+                        </div>
+                    </div>
+                    <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-600 bg-slate-100/80 px-3 py-1 rounded-lg border border-slate-200">
+                        <Shield size={14} className="text-blue-600" />
+                        <span>Examination Controller Portal</span>
+                    </div>
+                </div>
             </header>
 
-            {/* Main Content */}
-            <main className="flex-1 flex items-center justify-center px-4 py-12 relative overflow-hidden">
-                {/* Background decorative elements */}
-                <div className="absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl float-anim"></div>
-                <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary-container/5 rounded-full blur-3xl float-anim" style={{ animationDelay: '-3s' }}></div>
+            {/* 2. Main Login Area */}
+            <main className="flex-1 flex items-center justify-center px-4 py-12">
+                <div className="w-full max-w-md">
+                    {/* Portal Card */}
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+                        {/* Header */}
+                        <div className="text-center space-y-1">
+                            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                                Examination Portal Sign In
+                            </h2>
+                            <p className="text-xs text-slate-500">
+                                Secure access for students, examiners, and faculty evaluators
+                            </p>
+                        </div>
 
-                <div className="relative z-10 w-full max-w-md">
-                    {/* Login Card */}
-                    <div className="bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_rgba(47,86,200,0.08)] border border-outline-variant/10 overflow-hidden">
-                        
-                        {/* Card Header */}
-                        <div className="bg-gradient-to-br from-primary to-primary-container p-8 text-on-primary text-center relative overflow-hidden">
-                            <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-                            <div className="relative z-10">
-                                <div className="w-16 h-16 bg-white/20 backdrop-blur-lg rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/20">
-                                    <span className="material-symbols-outlined text-3xl">school</span>
-                                </div>
-                                <h2 className="text-2xl font-bold font-headline tracking-tight">Welcome Back</h2>
-                                <p className="text-sm opacity-80 mt-1">Sign in to continue to your portal</p>
-                            </div>
+                        {/* Role Segmented Switch */}
+                        <div className="flex bg-slate-100/90 p-1 rounded-xl border border-slate-200/80">
+                            <button
+                                type="button"
+                                onClick={() => { setRole('student'); setError(''); }}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                                    role === 'student'
+                                        ? 'bg-white text-blue-700 shadow-xs border border-slate-200/50'
+                                        : 'text-slate-600 hover:text-slate-900'
+                                }`}
+                            >
+                                <GraduationCap size={15} />
+                                <span>Student</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setRole('instructor'); setError(''); }}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                                    role === 'instructor'
+                                        ? 'bg-white text-blue-700 shadow-xs border border-slate-200/50'
+                                        : 'text-slate-600 hover:text-slate-900'
+                                }`}
+                            >
+                                <ShieldCheck size={15} />
+                                <span>Faculty / Admin</span>
+                            </button>
                         </div>
 
                         {/* Login Form */}
-                        <form onSubmit={handleSubmit} className="p-8 space-y-5">
-                            {/* Role Selector */}
-                            <div className="flex bg-surface-container-high rounded-xl p-1 gap-1">
-                                <button
-                                    type="button"
-                                    onClick={() => setRole('student')}
-                                    className={role === 'student'
-                                        ? 'flex-1 py-2.5 rounded-lg text-sm font-bold transition-all bg-primary text-on-primary shadow-sm'
-                                        : 'flex-1 py-2.5 rounded-lg text-sm font-bold transition-all text-on-surface-variant hover:bg-surface-container'}
-                                >
-                                    <span className="material-symbols-outlined text-base align-middle mr-1">person</span> Student
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setRole('instructor')}
-                                    className={role === 'instructor'
-                                        ? 'flex-1 py-2.5 rounded-lg text-sm font-bold transition-all bg-primary text-on-primary shadow-sm'
-                                        : 'flex-1 py-2.5 rounded-lg text-sm font-bold transition-all text-on-surface-variant hover:bg-surface-container'}
-                                >
-                                    <span className="material-symbols-outlined text-base align-middle mr-1">admin_panel_settings</span> Instructor
-                                </button>
-                            </div>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <Input
+                                label={role === 'student' ? 'Student USN / Username' : 'Faculty ID / Username'}
+                                placeholder={role === 'student' ? 'e.g. 1AG21CS001 or student1' : 'e.g. admin or faculty_cs'}
+                                value={username}
+                                onChange={e => setUsername(e.target.value)}
+                                icon={User}
+                                required
+                                autoComplete="username"
+                            />
 
-                            {/* Username */}
-                            <div>
-                                <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Username</label>
-                                <div className="relative">
-                                    <span className="absolute inset-y-0 left-3 flex items-center material-symbols-outlined text-on-surface-variant text-xl">person</span>
-                                    <input
-                                        type="text"
-                                        value={username}
-                                        onChange={e => setUsername(e.target.value)}
-                                        className="w-full bg-surface-container-high border-none rounded-xl pl-10 pr-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest transition-all placeholder:text-outline"
-                                        placeholder="Enter your username"
-                                        required
-                                        autoComplete="username"
-                                    />
-                                </div>
-                            </div>
+                            <Input
+                                label="Password"
+                                type={showPassword ? 'text' : 'password'}
+                                placeholder="••••••••••••"
+                                value={password}
+                                onChange={e => setPassword(e.target.value)}
+                                icon={Lock}
+                                required
+                                autoComplete="current-password"
+                                rightElement={
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
+                                        tabIndex={-1}
+                                        title={showPassword ? 'Hide password' : 'Show password'}
+                                    >
+                                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
+                                }
+                            />
 
-                            {/* Password */}
-                            <div>
-                                <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Password</label>
-                                <div className="relative">
-                                    <span className="absolute inset-y-0 left-3 flex items-center material-symbols-outlined text-on-surface-variant text-xl">lock</span>
-                                    <input
-                                        type="password"
-                                        value={password}
-                                        onChange={e => setPassword(e.target.value)}
-                                        className="w-full bg-surface-container-high border-none rounded-xl pl-10 pr-4 py-3 text-sm focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest transition-all placeholder:text-outline"
-                                        placeholder="Enter your password"
-                                        required
-                                        autoComplete="current-password"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Error Message */}
                             {error && (
-                                <div className="bg-error-container/10 border border-error/20 text-error text-sm font-medium rounded-xl px-4 py-3 text-center">
+                                <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg font-medium leading-relaxed">
                                     {error}
                                 </div>
                             )}
 
-                            {/* Login Button */}
-                            <button
+                            <Button
                                 type="submit"
-                                disabled={loading}
-                                className="w-full bg-primary text-on-primary py-3.5 rounded-xl font-bold text-sm hover:bg-primary-dim transition-all shadow-lg shadow-primary/20 active:scale-[0.98] flex items-center justify-center gap-2"
+                                variant="primary"
+                                fullWidth
+                                size="md"
+                                loading={loading}
+                                icon={ArrowRight}
+                                iconPosition="right"
                             >
-                                <span className="material-symbols-outlined text-lg">login</span>
-                                {loading ? 'Signing in...' : 'Sign In'}
-                            </button>
+                                Sign In to Examination Portal
+                            </Button>
                         </form>
-                    </div>
 
-                    {/* Info */}
-                    <div className="text-center mt-6 space-y-1">
-                        <p className="text-xs text-on-surface-variant">Default credentials: <span className="font-bold">admin/admin123</span> or <span className="font-bold">student1/pass1</span></p>
+                        {/* Viva / Demonstration Quick Sign-In Buttons */}
+                        <div className="pt-4 border-t border-slate-100 space-y-2">
+                            <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold uppercase tracking-wider">
+                                <span>Quick Demo Credentials</span>
+                                <span className="text-[10px] text-blue-600 font-normal">Click to fill</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => handleQuickFill('admin', 'admin123', 'instructor')}
+                                    className="p-2 rounded-lg bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 text-left transition-colors cursor-pointer"
+                                >
+                                    <div className="text-[11px] font-bold text-slate-800">Admin / Faculty</div>
+                                    <div className="text-[10px] font-mono text-slate-500">admin / admin123</div>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleQuickFill('student1', 'pass1', 'student')}
+                                    className="p-2 rounded-lg bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 text-left transition-colors cursor-pointer"
+                                >
+                                    <div className="text-[11px] font-bold text-slate-800">Student (Rahul)</div>
+                                    <div className="text-[10px] font-mono text-slate-500">student1 / pass1</div>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </main>
 
-            {/* Footer */}
-            <footer className="w-full bg-primary text-on-primary py-4 px-6 text-center mt-12">
-                <p className="text-xs font-medium">Online Examination System</p>
-                <p className="text-[10px] mt-0.5 opacity-80">Developer: Sayed Zaid Kazi | AGMR College of Engineering</p>
+            {/* 3. Clean Institutional Footer */}
+            <footer className="w-full bg-white border-t border-slate-200 py-4 px-6 text-center text-xs text-slate-500">
+                <p>© 2026 AGMR College of Engineering. Online Examination System.</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Autonomous Academic Assessment Infrastructure</p>
             </footer>
         </div>
     );
 }
+
+export default Login;

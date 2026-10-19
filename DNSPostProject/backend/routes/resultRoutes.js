@@ -14,7 +14,10 @@ router.get('/my', requireStudent, resultController.getMyResults);
 router.get('/rank-list/:exam_id', requireAuth, resultController.getRankList);
 router.get('/leaderboard', requireAuth, resultController.getLeaderboard);
 router.post('/submit', requireStudent, validate(submitExamSchema), resultController.submit);
+router.post('/submit-exam', requireStudent, validate(submitExamSchema), resultController.submit);
 router.get('/pdf/:result_id', requireAuth, resultController.downloadPDF);
 router.get('/hall-ticket/:exam_id', requireStudent, resultController.downloadHallTicket);
+router.get('/ai-analysis/:result_id', requireAuth, resultController.getAIAnalysis);
+router.get('/:id', requireAuth, resultController.getById);
 
 module.exports = router;

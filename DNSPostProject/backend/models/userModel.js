@@ -37,27 +37,20 @@ const DEFAULT_USERS = [
 
 const userModel = {
     findByUsernameOrEmail: async (identifier, role) => {
+        const canonicalRole = role?.toLowerCase() === 'instructor' ? 'Admin' : role;
+
         try {
             const sql = `SELECT * FROM students WHERE (username = ? OR email = ?) AND role = ? LIMIT 1`;
-            const user = await queryOne(sql, [identifier, identifier, role]);
+            const user = await queryOne(sql, [identifier, identifier, canonicalRole]);
             if (user) return user;
-
-            // Fallback without role constraint if strict role query returned no rows
-            const userAnyRole = await queryOne(`SELECT * FROM students WHERE username = ? OR email = ? LIMIT 1`, [identifier, identifier]);
-            if (userAnyRole) return userAnyRole;
         } catch (_) {}
 
         // Fallback matching if DB is offline or table is empty
-        const exactMatch = DEFAULT_USERS.find(u => 
+        const exactMatch = DEFAULT_USERS.find(u =>
             (u.username.toLowerCase() === identifier.toLowerCase() || u.email.toLowerCase() === identifier.toLowerCase()) &&
-            u.role.toLowerCase() === role.toLowerCase()
+            u.role.toLowerCase() === canonicalRole?.toLowerCase()
         );
-        if (exactMatch) return exactMatch;
-
-        // Any role match fallback
-        return DEFAULT_USERS.find(u => 
-            u.username.toLowerCase() === identifier.toLowerCase() || u.email.toLowerCase() === identifier.toLowerCase()
-        ) || null;
+        return exactMatch || null;
     },
 
     findById: async (id) => {
@@ -84,9 +77,11 @@ const userModel = {
             const res = await query(sql, [username, password, name, usn, email]);
             return res.insertId;
         } catch (err) {
-            const newId = DEFAULT_USERS.length + 1;
-            DEFAULT_USERS.push({ id: newId, username, password, role: 'Student', name, usn, email });
-            return newId;
+            if (err.code === 'ER_DUP_ENTRY' || err.code === 'ER_BAD_NULL_ERROR') {
+                throw err;
+            }
+            console.error('[userModel.createStudent Database Error]:', err.message);
+            throw err;
         }
     },
 

@@ -1,12 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
+import { AppLayout } from '../components/ui/AppLayout';
+import { PageHeader } from '../components/ui/PageHeader';
+import { Card } from '../components/ui/Card';
+import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
+import { StatCard } from '../components/ui/StatCard';
+import { EmptyState } from '../components/ui/EmptyState';
+import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
+import { 
+    Search, 
+    Download, 
+    FileText, 
+    CheckCircle2, 
+    XCircle,
+    Award,
+    TrendingUp,
+    Users,
+    FileSpreadsheet,
+    ShieldAlert
+} from 'lucide-react';
 
 export function AllResults() {
-    const { user, logout } = useAuth();
+    const { user } = useAuth();
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'passed' | 'failed'
 
     useEffect(() => {
         apiFetch('/api/results')
@@ -17,108 +38,272 @@ export function AllResults() {
 
     const resultsList = Array.isArray(results) ? results : [];
 
+    // Computed Stats
+    const totalCount = resultsList.length;
+    const passedCount = resultsList.filter(r => (r.Percentage || 0) >= 40).length;
+    const passRate = totalCount > 0 ? Math.round((passedCount / totalCount) * 100) : 0;
+    const avgScore = totalCount > 0 
+        ? Math.round(resultsList.reduce((acc, r) => acc + (r.Percentage || 0), 0) / totalCount) 
+        : 0;
+    const distinctionCount = resultsList.filter(r => (r.Percentage || 0) >= 75).length;
+
+    // Filtered records
+    const filtered = resultsList.filter(r => {
+        const query = searchTerm.toLowerCase();
+        const matchesQuery = 
+            (r.Username || '').toLowerCase().includes(query) ||
+            (r.Name || '').toLowerCase().includes(query) ||
+            (r.USN || '').toLowerCase().includes(query) ||
+            (r.ExamName || '').toLowerCase().includes(query);
+
+        if (!matchesQuery) return false;
+
+        const isPassed = (r.Percentage || 0) >= 40;
+        if (statusFilter === 'passed') return isPassed;
+        if (statusFilter === 'failed') return !isPassed;
+        return true;
+    });
+
+    // CSV Export for university record audits
+    const exportCSV = () => {
+        if (filtered.length === 0) return;
+        const headers = ['Candidate', 'Username', 'USN', 'Examination', 'Score', 'TotalMarks', 'Percentage', 'Grade', 'Result', 'ExamDate'];
+        const rows = filtered.map(r => [
+            `"${(r.Name || r.Username || '').replace(/"/g, '""')}"`,
+            `"${(r.Username || '').replace(/"/g, '""')}"`,
+            `"${(r.USN || '').replace(/"/g, '""')}"`,
+            `"${(r.ExamName || '').replace(/"/g, '""')}"`,
+            r.Score ?? 0,
+            r.TotalMarks ?? 100,
+            r.Percentage ?? 0,
+            `"${r.Grade || ''}"`,
+            (r.Percentage || 0) >= 40 ? 'PASS' : 'FAIL',
+            `"${r.ExamDate ? new Date(r.ExamDate).toISOString().split('T')[0] : ''}"`
+        ]);
+
+        const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement('a');
+        link.setAttribute('href', encodedUri);
+        link.setAttribute('download', `AGMR_Exam_Results_Ledger_${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
-        <div className="bg-surface min-h-screen flex flex-col font-body">
-            {/* Header Banner */}
-            <header className="w-full bg-primary text-on-primary py-3 px-6 text-center shadow-lg relative z-10">
-                <h1 className="text-lg font-bold font-headline tracking-tight">AGMR College of Engineering</h1>
-                <p className="text-xs opacity-80">Online Examination System — Results Database</p>
-            </header>
+        <AppLayout activeTab="results">
+            <div className="space-y-6">
+                <PageHeader
+                    title="Master Examination Results Ledger"
+                    description="Official institutional registry of student examination submissions, grades, and AI proctoring audits."
+                    badge={<Badge variant="primary" dot>{totalCount} Total Attempts</Badge>}
+                    action={
+                        <Button
+                            variant="outline"
+                            icon={FileSpreadsheet}
+                            onClick={exportCSV}
+                            disabled={filtered.length === 0}
+                        >
+                            Export Ledger (.CSV)
+                        </Button>
+                    }
+                />
 
-            {/* Top Navigation */}
-            <nav className="sticky top-0 z-40 bg-surface-container-lowest/90 backdrop-blur-xl border-b border-outline-variant/10 px-6 py-3 flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                    <h2 className="text-lg font-bold font-headline text-primary">Results Database</h2>
+                {/* 1. Summary Statistics KPIs */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard
+                        title="Total Submissions"
+                        value={totalCount}
+                        description="Verified exam sessions"
+                        icon={Users}
+                        iconColor="blue"
+                    />
+                    <StatCard
+                        title="Pass Rate"
+                        value={`${passRate}%`}
+                        description={`${passedCount} of ${totalCount} candidates qualified`}
+                        icon={CheckCircle2}
+                        iconColor="emerald"
+                    />
+                    <StatCard
+                        title="Average Score"
+                        value={`${avgScore}%`}
+                        description="Cohort-wide aggregated score"
+                        icon={TrendingUp}
+                        iconColor="indigo"
+                    />
+                    <StatCard
+                        title="Distinction (>=75%)"
+                        value={distinctionCount}
+                        description="Top academic percentile"
+                        icon={Award}
+                        iconColor="amber"
+                    />
                 </div>
-                <div className="flex items-center gap-4">
-                    <span className="text-sm font-bold text-on-surface-variant">Welcome, {user?.username || 'Instructor'}</span>
-                    <button onClick={logout} className="px-3 py-1.5 rounded-lg text-xs font-bold text-error bg-error-container/10 hover:bg-error-container/20 transition-all flex items-center gap-1">
-                        <span className="material-symbols-outlined text-sm">logout</span> Logout
-                    </button>
-                </div>
-            </nav>
 
-            <div className="flex flex-1">
-                {/* Sidebar */}
-                <aside className="w-64 bg-surface-container-lowest border-r border-outline-variant/10 flex flex-col p-4 space-y-2">
-                    <div className="px-3 py-2 mb-4">
-                        <h3 className="text-xs font-bold text-outline uppercase tracking-widest">Instructor Portal</h3>
-                        <p className="text-sm font-bold text-on-surface">AGMR College</p>
-                    </div>
+                {/* 2. Main Ledger Card */}
+                <Card
+                    title="Submissions Ledger"
+                    subtitle={`Displaying ${filtered.length} of ${totalCount} recorded attempts`}
+                    action={
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                            {/* Segmented Filter Tabs */}
+                            <div className="flex p-0.5 bg-slate-100 rounded-lg border border-slate-200 text-xs">
+                                <button
+                                    type="button"
+                                    onClick={() => setStatusFilter('all')}
+                                    className={`px-3 py-1 rounded-md font-medium transition-colors ${
+                                        statusFilter === 'all'
+                                            ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                                            : 'text-slate-600 hover:text-slate-900'
+                                    }`}
+                                >
+                                    All ({totalCount})
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setStatusFilter('passed')}
+                                    className={`px-3 py-1 rounded-md font-medium transition-colors ${
+                                        statusFilter === 'passed'
+                                            ? 'bg-white text-emerald-700 shadow-2xs font-semibold'
+                                            : 'text-slate-600 hover:text-slate-900'
+                                    }`}
+                                >
+                                    Passed ({passedCount})
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setStatusFilter('failed')}
+                                    className={`px-3 py-1 rounded-md font-medium transition-colors ${
+                                        statusFilter === 'failed'
+                                            ? 'bg-white text-red-700 shadow-2xs font-semibold'
+                                            : 'text-slate-600 hover:text-slate-900'
+                                    }`}
+                                >
+                                    Failed ({totalCount - passedCount})
+                                </button>
+                            </div>
 
-                    <Link to="/admin" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-all">
-                        <span className="material-symbols-outlined text-xl">dashboard</span> Overview
-                    </Link>
-                    <Link to="/create-exam" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-all">
-                        <span className="material-symbols-outlined text-xl">add_circle</span> Create Exam
-                    </Link>
-                    <Link to="/results" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold bg-primary text-on-primary shadow-sm">
-                        <span className="material-symbols-outlined text-xl">analytics</span> View Results
-                    </Link>
-                    <Link to="/ai-settings" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-all">
-                        <span className="material-symbols-outlined text-xl">settings_suggest</span> AI Security Settings
-                    </Link>
-                </aside>
-
-                {/* Main Content */}
-                <main className="flex-1 p-8 space-y-8 overflow-y-auto">
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <h1 className="text-2xl font-bold font-headline text-on-surface">All Student Exam Results</h1>
-                            <p className="text-sm text-on-surface-variant mt-1">Comprehensive record of all student exam submissions, scores, and certificates.</p>
+                            {/* Search Field */}
+                            <div className="relative">
+                                <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Filter by USN, name, exam..."
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                    className="pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-colors"
+                                />
+                            </div>
                         </div>
-                        <span className="bg-secondary-container text-primary text-xs font-bold px-3 py-1.5 rounded-full">{resultsList.length} Submissions</span>
-                    </div>
-
-                    <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant/10 shadow-sm">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm">
+                    }
+                >
+                    {loading ? (
+                        <div className="py-6">
+                            <LoadingSkeleton type="table" count={5} />
+                        </div>
+                    ) : filtered.length === 0 ? (
+                        <EmptyState
+                            title="No records matching filter"
+                            description="Try adjusting your search criteria or switch filter tabs to view available submissions."
+                            icon={FileText}
+                            action={
+                                searchTerm ? (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setSearchTerm('')}
+                                    >
+                                        Clear Search Filter
+                                    </Button>
+                                ) : null
+                            }
+                        />
+                    ) : (
+                        <div className="overflow-x-auto -mx-5 -mb-5">
+                            <table className="w-full text-left text-xs border-collapse">
                                 <thead>
-                                    <tr className="border-b border-outline-variant/10 text-xs text-outline font-bold uppercase">
-                                        <th className="py-3 px-4">Username</th>
-                                        <th className="py-3 px-4">Name</th>
+                                    <tr className="bg-slate-50/80 border-y border-slate-200 text-slate-500 uppercase tracking-wider text-[11px] font-semibold">
+                                        <th className="py-3 px-5">Candidate</th>
                                         <th className="py-3 px-4">USN</th>
-                                        <th className="py-3 px-4">Exam Name</th>
+                                        <th className="py-3 px-4">Examination</th>
                                         <th className="py-3 px-4">Score</th>
-                                        <th className="py-3 px-4">Total Marks</th>
-                                        <th className="py-3 px-4">Percentage</th>
-                                        <th className="py-3 px-4">Grade</th>
-                                        <th className="py-3 px-4">Status</th>
-                                        <th className="py-3 px-4">Date</th>
-                                        <th className="py-3 px-4 text-right">Certificate</th>
+                                        <th className="py-3 px-4">Score %</th>
+                                        <th className="py-3 px-3 text-center">Grade</th>
+                                        <th className="py-3 px-4">Result</th>
+                                        <th className="py-3 px-4">Exam Date</th>
+                                        <th className="py-3 px-5 text-right">Audit Documents</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-outline-variant/10">
-                                    {loading ? (
-                                        <tr><td colSpan="11" className="py-8 text-center text-outline">Loading results database...</td></tr>
-                                    ) : resultsList.length === 0 ? (
-                                        <tr><td colSpan="11" className="py-8 text-center text-outline">No results recorded yet</td></tr>
-                                    ) : (
-                                        resultsList.map(r => (
-                                            <tr key={r.id} className="hover:bg-surface-container-low transition-all">
-                                                <td className="py-3.5 px-4 font-bold text-on-surface">{r.Username}</td>
-                                                <td className="py-3.5 px-4">{r.Name || '-'}</td>
-                                                <td className="py-3.5 px-4"><span className="bg-secondary-container text-primary text-xs font-bold px-2 py-0.5 rounded-full">{r.USN || '-'}</span></td>
-                                                <td className="py-3.5 px-4 font-bold">{r.ExamName}</td>
-                                                <td className="py-3.5 px-4 font-bold">{r.Score}</td>
-                                                <td className="py-3.5 px-4">{r.TotalMarks}</td>
-                                                <td className="py-3.5 px-4 font-bold">{r.Percentage}%</td>
-                                                <td className="py-3.5 px-4"><span className="bg-secondary-container text-primary text-xs font-bold px-2.5 py-0.5 rounded-full">{r.Grade}</span></td>
-                                                <td className="py-3.5 px-4"><span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${r.Percentage >= 40 ? 'bg-success/10 text-success' : 'bg-error/10 text-error'}`}>{r.Percentage >= 40 ? 'PASS' : 'FAIL'}</span></td>
-                                                <td className="py-3.5 px-4 text-outline text-xs">{r.ExamDate ? new Date(r.ExamDate).toLocaleDateString('en-IN') : '-'}</td>
-                                                <td className="py-3.5 px-4 text-right flex gap-1.5 justify-end">
-                                                    <a href={`/api/result-pdf/${r.id}`} className="bg-secondary-container text-primary px-2.5 py-1 rounded-lg text-xs font-bold hover:bg-primary hover:text-white transition-all">Scorecard</a>
-                                                    <a href={`/api/proctor/report-pdf/${r.id}`} target="_blank" rel="noreferrer" className="bg-primary/10 text-primary border border-primary/30 px-2.5 py-1 rounded-lg text-xs font-bold hover:bg-primary hover:text-white transition-all">AI Report</a>
+                                <tbody className="divide-y divide-slate-100">
+                                    {filtered.map(r => {
+                                        const passed = (r.Percentage || 0) >= 40;
+                                        return (
+                                            <tr key={r.id} className="hover:bg-slate-50/70 transition-colors">
+                                                <td className="py-3 px-5">
+                                                    <div className="font-semibold text-slate-900">{r.Name || r.Username}</div>
+                                                    <div className="text-[11px] text-slate-400 font-mono">@{r.Username}</div>
+                                                </td>
+                                                <td className="py-3 px-4 font-mono text-xs font-semibold text-slate-700">
+                                                    {r.USN || '—'}
+                                                </td>
+                                                <td className="py-3 px-4 font-medium text-slate-900">
+                                                    {r.ExamName}
+                                                </td>
+                                                <td className="py-3 px-4">
+                                                    <span className="font-bold text-slate-900">{r.Score}</span>
+                                                    <span className="text-slate-400"> / {r.TotalMarks}</span>
+                                                </td>
+                                                <td className="py-3 px-4 font-semibold text-slate-800">
+                                                    {r.Percentage}%
+                                                </td>
+                                                <td className="py-3 px-3 text-center">
+                                                    <span className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                                                        {r.Grade || '-'}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4">
+                                                    <Badge variant={passed ? 'success' : 'danger'} dot>
+                                                        {passed ? 'PASS' : 'FAIL'}
+                                                    </Badge>
+                                                </td>
+                                                <td className="py-3 px-4 text-slate-500 text-xs">
+                                                    {r.ExamDate ? new Date(r.ExamDate).toLocaleDateString('en-IN') : '—'}
+                                                </td>
+                                                <td className="py-3 px-5 text-right">
+                                                    <div className="flex items-center justify-end gap-1.5">
+                                                        <a
+                                                            href={`/api/result-pdf/${r.id}`}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="px-2.5 py-1 rounded-md text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors inline-flex items-center gap-1 shadow-2xs"
+                                                            title="Download Official Scorecard PDF"
+                                                        >
+                                                            <Download size={12} /> Scorecard
+                                                        </a>
+                                                        <a
+                                                            href={`/api/proctor/report-pdf/${r.id}`}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="px-2.5 py-1 rounded-md text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors inline-flex items-center gap-1"
+                                                            title="Download AI Proctoring Audit Report"
+                                                        >
+                                                            <FileText size={12} /> AI Audit
+                                                        </a>
+                                                    </div>
                                                 </td>
                                             </tr>
-                                        ))
-                                    )}
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
-                    </div>
-                </main>
+                    )}
+                </Card>
             </div>
-        </div>
+        </AppLayout>
     );
 }
+
+export default AllResults;

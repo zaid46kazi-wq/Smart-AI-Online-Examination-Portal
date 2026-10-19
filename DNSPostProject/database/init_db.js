@@ -44,6 +44,14 @@ async function run() {
             await conn.query(q).catch(() => {}); // Safely ignore if column already exists
         }
 
+        const evalMigrationPath = path.join(__dirname, 'evaluation_migration.sql');
+        if (fs.existsSync(evalMigrationPath)) {
+            console.log(`📄 Running evaluation migration...`);
+            const evalSql = fs.readFileSync(evalMigrationPath, 'utf8');
+            await conn.query(evalSql);
+            console.log(`✅ Evaluation tables migrated!`);
+        }
+
         console.log('\n🎉 SUCCESS: All MySQL tables and seed data initialized successfully!');
         console.log('─────────────────────────────────────────────────────────────\n');
         return true;

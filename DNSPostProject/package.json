@@ -8,9 +8,12 @@
     "dev": "node --watch backend/server.js",
     "dev:backend": "node --watch backend/server.js",
     "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
     "build:frontend": "npm --prefix frontend run build",
     "init-db": "node database/init_db.js",
-    "test": "node -e \"console.log('Root tests OK')\""
+    "test": "node --test backend/tests/integration.test.js",
+    "test:backend": "node --test backend/tests/integration.test.js",
+    "check": "npm run build && npm run test"
   },
   "engines": {
     "node": ">=18.0.0"
