@@ -46,7 +46,7 @@ if %ERRORLEVEL% equ 0 (
 
 :: 2. Backend Port & Health Check
 echo [*] Checking Backend API (Port %BACKEND_PORT%)...
-powershell -NoProfile -Command "try { $r = Invoke-RestMethod -Uri 'http://localhost:%BACKEND_PORT%/api/health' -Method Get -ErrorAction Stop; if ($r.status -eq 'ok') { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+powershell -NoProfile -Command "try { $r = Invoke-RestMethod -Uri 'http://localhost:%BACKEND_PORT%/api/health' -TimeoutSec 3 -ErrorAction Stop; if ($r.status -eq 'ok') { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
 if %ERRORLEVEL% equ 0 (
     echo [✓] PASS: Backend API is running on port %BACKEND_PORT%
     echo PASS: Backend API is running >> "%LOG_FILE%"
@@ -58,7 +58,7 @@ if %ERRORLEVEL% equ 0 (
 
 :: 3. Frontend Port Check
 echo [*] Checking Frontend (Port %FRONTEND_PORT%)...
-powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://localhost:%FRONTEND_PORT%' -Method Get -ErrorAction Stop; exit 0 } catch { exit 1 }" >nul 2>&1
+powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://localhost:%FRONTEND_PORT%' -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop; exit 0 } catch { exit 1 }" >nul 2>&1
 if %ERRORLEVEL% equ 0 (
     echo [✓] PASS: Frontend UI is running on port %FRONTEND_PORT%
     echo PASS: Frontend UI is running >> "%LOG_FILE%"
@@ -70,7 +70,7 @@ if %ERRORLEVEL% equ 0 (
 
 :: 4. Database Connection via API Check
 echo [*] Checking Database Connectivity...
-powershell -NoProfile -Command "try { $r = Invoke-RestMethod -Uri 'http://localhost:%BACKEND_PORT%/api/subjects' -Method Get -ErrorAction Stop; exit 0 } catch { exit 1 }" >nul 2>&1
+powershell -NoProfile -Command "try { $r = Invoke-RestMethod -Uri 'http://localhost:%BACKEND_PORT%/api/health' -TimeoutSec 3 -ErrorAction Stop; if ($r.database.ok) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
 if %ERRORLEVEL% equ 0 (
     echo [✓] PASS: Database connection verified
     echo PASS: Database connection verified >> "%LOG_FILE%"
